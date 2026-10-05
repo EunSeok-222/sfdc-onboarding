@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Status__c</fullName>
+    <description>26-10-06 Approval Process가 갱신(D3) by Kai</description>
+    <label>승인 상태</label>
+    <required>false</required>
+    <type>Picklist</type>
+    <valueSet>
+        <restricted>true</restricted>
+        <valueSetDefinition>
+            <sorted>false</sorted>
+            <value><fullName>승인대기</fullName><default>true</default><label
+        >승인대기</label></value>
+            <value><fullName>승인</fullName><default>false</default><label
+        >승인</label></value>
+            <value><fullName>반려</fullName><default>false</default><label
+        >반려</label></value>
+        </valueSetDefinition>
+    </valueSet>
+</CustomField>

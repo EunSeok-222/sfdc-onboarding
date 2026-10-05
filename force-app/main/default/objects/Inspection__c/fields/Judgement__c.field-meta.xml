@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Judgement__c</fullName>
+    <description
+  >26-10-06 총점·필수 미흡으로 Apex가 설정(D4) by Kai</description>
+    <label>판정</label>
+    <required>false</required>
+    <trackHistory>false</trackHistory>
+    <trackTrending>false</trackTrending>
+    <type>Picklist</type>
+    <valueSet>
+        <restricted>true</restricted>
+        <valueSetDefinition>
+            <sorted>false</sorted>
+            <value>
+                <fullName>합격</fullName>
+                <default>false</default>
+                <label>합격</label>
+            </value>
+            <value>
+                <fullName>시정 필요</fullName>
+                <default>false</default>
+                <label>시정 필요</label>
+            </value>
+            <value>
+                <fullName>불합격</fullName>
+                <default>false</default>
+                <label>불합격</label>
+            </value>
+        </valueSetDefinition>
+    </valueSet>
+</CustomField>

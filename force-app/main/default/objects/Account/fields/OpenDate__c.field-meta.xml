@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>OpenDate__c</fullName>
+    <description
+  >26-10-06 신규 오픈 3개월 이내 월 2회 점검(BR-01) by Kai</description>
+    <label>오픈일</label>
+    <required>false</required>
+    <trackFeedHistory>false</trackFeedHistory>
+    <type>Date</type>
+</CustomField>

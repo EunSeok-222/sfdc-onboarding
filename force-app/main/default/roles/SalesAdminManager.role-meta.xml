@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<Role xmlns="http://soap.sforce.com/2006/04/metadata">
+    <caseAccessLevel>Edit</caseAccessLevel>
+    <contactAccessLevel>Edit</contactAccessLevel>
+    <description>영업관리팀장</description>
+    <mayForecastManagerShare>false</mayForecastManagerShare>
+    <name>영업관리팀장</name>
+    <opportunityAccessLevel>Edit</opportunityAccessLevel>
+</Role>

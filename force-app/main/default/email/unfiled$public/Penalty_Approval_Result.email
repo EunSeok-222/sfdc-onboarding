@@ -1,0 +1,11 @@
+{!Penalty__c.OwnerFullName}님,
+
+요청하신 페널티의 승인 처리가 완료되었습니다.
+
+- 페널티번호: {!Penalty__c.Name}
+- 가맹점: {!Penalty__c.Franchise__c}
+- 유형: {!Penalty__c.PenaltyType__c}
+- 처리 결과: {!Penalty__c.Status__c}
+- 사유: {!Penalty__c.Reason__c}
+
+레코드 확인: {!Penalty__c.Link}

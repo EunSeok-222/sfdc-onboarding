@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<EmailTemplate xmlns="http://soap.sforce.com/2006/04/metadata">
+    <available>true</available>
+    <encodingKey>UTF-8</encodingKey>
+    <name>페널티 승인 결과 통보</name>
+    <style>none</style>
+    <subject
+  >[한끼정성] 페널티 {!Penalty__c.Name} 처리 결과: {!Penalty__c.Status__c}</subject>
+    <type>text</type>
+    <uiType>Aloha</uiType>
+</EmailTemplate>

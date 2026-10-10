@@ -1,13 +1,14 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <Queue xmlns="http://soap.sforce.com/2006/04/metadata">
+    <doesIncludeBosses>true</doesIncludeBosses>
     <doesSendEmailToMembers>false</doesSendEmailToMembers>
     <name>미배정 점검</name>
     <queueMembers>
         <roles>
-            <role>RegionManagerCapital</role>
-            <role>RegionManagerYeongnam</role>
             <role>SupervisorCapital</role>
             <role>SupervisorYeongnam</role>
+            <role>RegionManagerCapital</role>
+            <role>RegionManagerYeongnam</role>
         </roles>
     </queueMembers>
     <queueSobject>

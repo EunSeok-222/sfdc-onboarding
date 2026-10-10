@@ -5,6 +5,7 @@
     <columns>InspectionResult__c</columns>
     <columns>Status__c</columns>
     <columns>DueDate__c</columns>
+    <columns>RequiresRevisit__c</columns>
     <filterScope>Everything</filterScope>
     <label>All</label>
 </ListView>

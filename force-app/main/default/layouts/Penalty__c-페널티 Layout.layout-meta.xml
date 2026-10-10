@@ -14,7 +14,7 @@
                 <behavior>Readonly</behavior>
                 <field>Name</field>
             </layoutItems>
-                    <layoutItems>
+            <layoutItems>
                 <behavior>Edit</behavior>
                 <field>SourceInspection__c</field>
             </layoutItems>
@@ -26,13 +26,13 @@
                 <behavior>Edit</behavior>
                 <field>Status__c</field>
             </layoutItems>
-</layoutColumns>
+        </layoutColumns>
         <layoutColumns>
             <layoutItems>
                 <behavior>Edit</behavior>
                 <field>OwnerId</field>
             </layoutItems>
-                    <layoutItems>
+            <layoutItems>
                 <behavior>Edit</behavior>
                 <field>StartDate__c</field>
             </layoutItems>
@@ -44,7 +44,7 @@
                 <behavior>Edit</behavior>
                 <field>Reason__c</field>
             </layoutItems>
-</layoutColumns>
+        </layoutColumns>
         <style>TwoColumnsTopToBottom</style>
     </layoutSections>
     <layoutSections>
@@ -78,6 +78,14 @@
     <miniLayout>
         <fields>Franchise__c</fields>
     </miniLayout>
+    <relatedLists>
+        <fields>CreatedDate</fields>
+        <fields>StepStatus</fields>
+        <fields>OriginalActor</fields>
+        <fields>Actor</fields>
+        <fields>Comments</fields>
+        <relatedList>RelatedProcessHistoryList</relatedList>
+    </relatedLists>
     <showEmailCheckbox>false</showEmailCheckbox>
     <showHighlightsPanel>false</showHighlightsPanel>
     <showInteractionLogPanel>false</showInteractionLogPanel>

@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>TemplateItem__c</fullName>
+    <deleteConstraint>Restrict</deleteConstraint>
+    <description>26-10-06 같은 항목 반복 판단 키(BR-08) by Kai</description>
+    <label>점검 항목 템플릿</label>
+    <referenceTo>InspectionTemplateItem__c</referenceTo>
+    <relationshipLabel>점검 결과 항목</relationshipLabel>
+    <relationshipName>TemplateItemInspectionResults</relationshipName>
+    <required>false</required>
+    <trackHistory>false</trackHistory>
+    <trackTrending>false</trackTrending>
+    <type>Lookup</type>
+</CustomField>

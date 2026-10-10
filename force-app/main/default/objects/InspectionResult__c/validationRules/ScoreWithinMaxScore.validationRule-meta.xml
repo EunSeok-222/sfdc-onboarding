@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<ValidationRule xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>ScoreWithinMaxScore</fullName>
+    <active>true</active>
+    <description>26-10-06 점수는 0~배점 범위 by Kai</description>
+    <errorConditionFormula>OR(
+  Score__c &lt; 0,
+  AND(NOT(ISBLANK(MaxScore__c)), Score__c &gt; MaxScore__c)
+)</errorConditionFormula>
+    <errorDisplayField>Score__c</errorDisplayField>
+    <errorMessage>점수는 0 이상, 배점 이하로 입력하세요.</errorMessage>
+</ValidationRule>

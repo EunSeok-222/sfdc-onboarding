@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <Layout xmlns="http://soap.sforce.com/2006/04/metadata">
+    <excludeButtons>OpenSlackRecordChannel</excludeButtons>
     <layoutSections>
         <customLabel>false</customLabel>
         <detailHeading>false</detailHeading>
@@ -34,7 +35,7 @@
                 <behavior>Readonly</behavior>
                 <field>ruDeficientRequiredCount__c</field>
             </layoutItems>
-                    <layoutItems>
+            <layoutItems>
                 <behavior>Edit</behavior>
                 <field>OriginalInspection__c</field>
             </layoutItems>
@@ -42,17 +43,17 @@
                 <behavior>Edit</behavior>
                 <field>InspectionNo__c</field>
             </layoutItems>
-</layoutColumns>
+        </layoutColumns>
         <layoutColumns>
             <layoutItems>
                 <behavior>Edit</behavior>
                 <field>OwnerId</field>
             </layoutItems>
-                    <layoutItems>
+            <layoutItems>
                 <behavior>Readonly</behavior>
                 <field>Judgement__c</field>
             </layoutItems>
-</layoutColumns>
+        </layoutColumns>
         <style>TwoColumnsTopToBottom</style>
     </layoutSections>
     <layoutSections>
@@ -75,14 +76,18 @@
         <style>TwoColumnsTopToBottom</style>
     </layoutSections>
     <layoutSections>
-        <customLabel>false</customLabel>
+        <customLabel>true</customLabel>
         <detailHeading>false</detailHeading>
         <editHeading>true</editHeading>
+        <label>Custom Links</label>
         <layoutColumns />
         <layoutColumns />
         <layoutColumns />
         <style>CustomLinks</style>
     </layoutSections>
+    <relatedLists>
+        <relatedList>RelatedEntityHistoryList</relatedList>
+    </relatedLists>
     <relatedLists>
         <fields>TASK.SUBJECT</fields>
         <fields>TASK.WHO_NAME</fields>
@@ -107,6 +112,13 @@
     </relatedLists>
     <relatedLists>
         <fields>NAME</fields>
+        <fields>ItemName__c</fields>
+        <fields>IsRequired__c</fields>
+        <fields>Category__c</fields>
+        <fields>IsDeficient__c</fields>
+        <fields>Score__c</fields>
+        <fields>MaxScore__c</fields>
+        <fields>TemplateItem__c</fields>
         <relatedList>InspectionResult__c.Inspection__c</relatedList>
     </relatedLists>
     <relatedLists>
@@ -126,4 +138,10 @@
     <showInteractionLogPanel>false</showInteractionLogPanel>
     <showRunAssignmentRulesCheckbox>false</showRunAssignmentRulesCheckbox>
     <showSubmitAndAttachButton>false</showSubmitAndAttachButton>
+    <summaryLayout>
+        <masterLabel>00hdL00000iS28n</masterLabel>
+        <sizeX>4</sizeX>
+        <sizeY>0</sizeY>
+        <summaryLayoutStyle>Default</summaryLayoutStyle>
+    </summaryLayout>
 </Layout>

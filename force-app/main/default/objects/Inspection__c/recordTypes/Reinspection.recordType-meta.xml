@@ -16,7 +16,7 @@
         </values>
         <values>
             <fullName>합격</fullName>
-            <default>true</default>
+            <default>false</default>
         </values>
     </picklistValues>
     <picklistValues>

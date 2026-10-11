@@ -11,6 +11,17 @@
  *  @see         : Inspection.trigger, InspectionService.cls, FranchiseInspectionDateService.cls
  * ======================================================================================*/
 public with sharing class InspectionTriggerHandler {
+  // DESC: 상태 전이 허용 표 — 키 = 현재 상태, 값 = 갈 수 있는 다음 상태
+  // NOTE: 페널티 진행은 페널티 레코드의 승인 상태가 담당하므로 점검 상태에는 '페널티승인대기'를 두지 않는다
+  private static final Map<String, Set<String>> ALLOWED_NEXT_STATUSES_BY_STATUS = new Map<String, Set<String>>{
+    '점검예정' => new Set<String>{ '점검완료' },
+    '점검완료' => new Set<String>{ '시정중', '종료' },
+    '시정중' => new Set<String>{ '지연', '재점검완료' },
+    '지연' => new Set<String>{ '재점검완료' },
+    '재점검완료' => new Set<String>{ '종료' },
+    '종료' => new Set<String>()
+  };
+
   /**
    * @description : 저장 직전 같은 레코드를 검증·세팅한다. DML 없이 newInspections를 직접 수정한다.
    * @author      : 이은석(Kai) | 2026.10.11
@@ -21,7 +32,7 @@ public with sharing class InspectionTriggerHandler {
     List<Inspection__c> newInspections,
     Map<Id, Inspection__c> oldInspectionsById
   ) {
-    // TODO: 1) 상태 전이 검증 — 허용 표에 없는 이동이면 addError (같은 상태 재저장은 허용)
+    validateStatusTransitions(newInspections, oldInspectionsById);
     // TODO: 2) 판정 세팅 — '점검완료'로 바뀐 점검 + 점검완료 상태에서 Roll-Up 값이 바뀐 점검만
   }
 
@@ -64,5 +75,42 @@ public with sharing class InspectionTriggerHandler {
    **/
   public void afterUndelete(List<Inspection__c> newInspections) {
     // TODO: 가맹점 Id 수집 → FranchiseInspectionDateService 호출
+  }
+
+  /**
+   * @description : 허용 표에 없는 상태 이동이면 상태 필드에 오류를 걸어 저장을 막는다.
+   *                상태가 바뀌지 않은 저장은 검사하지 않는다.
+   * @author      : 이은석(Kai) | 2026.10.11
+   * @param newInspections     Trigger.new
+   * @param oldInspectionsById Trigger.oldMap
+   **/
+  private void validateStatusTransitions(
+    List<Inspection__c> newInspections,
+    Map<Id, Inspection__c> oldInspectionsById
+  ) {
+    for (Inspection__c ins : newInspections) {
+      String oldStatus = oldInspectionsById.get(ins.Id).Status__c;
+      String newStatus = ins.Status__c;
+
+      if (oldStatus == newStatus) {
+        continue;
+      }
+
+      // WARN: 표에 없는 상태(빈 값 · 비활성 값)에서 출발하면 get()이 null — null 체크 없이 contains()를 부르면 NullPointerException
+      Set<String> allowedNextStatuses = ALLOWED_NEXT_STATUSES_BY_STATUS.get(
+        oldStatus
+      );
+      if (
+        allowedNextStatuses == null || !allowedNextStatuses.contains(newStatus)
+      ) {
+        ins.Status__c.addError(
+          '\'' +
+            oldStatus +
+            '\'에서 \'' +
+            newStatus +
+            '\'(으)로 바꿀 수 없습니다.'
+        );
+      }
+    }
   }
 }

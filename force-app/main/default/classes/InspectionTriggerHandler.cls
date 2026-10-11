@@ -7,6 +7,7 @@
  *  Date         Modifier   Status      Description
  * --------------------------------------------------------------------------------------
  *  2026.10.11   Kai        Created     최초 작성 (뼈대)
+ *  2026.10.11   Kai        Updated     상태 전이 검증 · 판정 세팅 · 최근 정기점검일 재계산 연결
  * ======================================================================================
  *  @see         : Inspection.trigger, InspectionService.cls, FranchiseInspectionDateService.cls
  * ======================================================================================*/
@@ -22,6 +23,14 @@ public with sharing class InspectionTriggerHandler {
     '종료' => new Set<String>()
   };
 
+  private static final String COMPLETED_STATUS = '점검완료';
+
+  // NOTE: 레코드 유형 Id는 org마다 다르므로 DeveloperName으로 찾는다 (describe라 SOQL 소모 없음)
+  private static final Id REGULAR_RECORD_TYPE_ID = Schema.SObjectType.Inspection__c
+    .getRecordTypeInfosByDeveloperName()
+    .get(FranchiseInspectionDateService.REGULAR_RECORD_TYPE)
+    .getRecordTypeId();
+
   /**
    * @description : 저장 직전 같은 레코드를 검증·세팅한다. DML 없이 newInspections를 직접 수정한다.
    * @author      : 이은석(Kai) | 2026.10.11
@@ -33,7 +42,7 @@ public with sharing class InspectionTriggerHandler {
     Map<Id, Inspection__c> oldInspectionsById
   ) {
     validateStatusTransitions(newInspections, oldInspectionsById);
-    // TODO: 2) 판정 세팅 — '점검완료'로 바뀐 점검 + 점검완료 상태에서 Roll-Up 값이 바뀐 점검만
+    applyJudgementsOnCompletion(newInspections, oldInspectionsById);
   }
 
   /**
@@ -42,7 +51,7 @@ public with sharing class InspectionTriggerHandler {
    * @param newInspections Trigger.new
    **/
   public void afterInsert(List<Inspection__c> newInspections) {
-    // TODO: 가맹점 Id 수집 → FranchiseInspectionDateService 호출
+    recalculateFranchiseDates(collectCountedFranchiseIds(newInspections));
   }
 
   /**
@@ -55,8 +64,26 @@ public with sharing class InspectionTriggerHandler {
     List<Inspection__c> newInspections,
     Map<Id, Inspection__c> oldInspectionsById
   ) {
-    // TODO: 가맹점 · 점검일 · 레코드 유형이 바뀌었거나 상태가 '점검예정'과 다른 상태 사이에서 바뀐 점검만
-    // TODO: 이전 가맹점(old)과 새 가맹점(new)을 둘 다 수집
+    Set<Id> franchiseIds = new Set<Id>();
+    for (Inspection__c ins : newInspections) {
+      Inspection__c oldIns = oldInspectionsById.get(ins.Id);
+      Boolean wasCounted = isCountedRegularInspection(oldIns);
+      Boolean isCounted = isCountedRegularInspection(ins);
+
+      // DESC: 집계 대상 여부가 바뀌었거나, 대상인 점검의 가맹점 · 점검일이 바뀐 경우만 다시 계산 (점수 · 판정 수정은 건너뜀)
+      Boolean affectsDate =
+        wasCounted != isCounted ||
+        (isCounted &&
+        (ins.Franchise__c != oldIns.Franchise__c ||
+        ins.InspectionDate__c != oldIns.InspectionDate__c));
+
+      if (affectsDate) {
+        // NOTE: 가맹점이 A → B로 바뀌면 A는 점검이 빠지고 B는 들어오므로 둘 다 다시 계산
+        franchiseIds.add(oldIns.Franchise__c);
+        franchiseIds.add(ins.Franchise__c);
+      }
+    }
+    recalculateFranchiseDates(franchiseIds);
   }
 
   /**
@@ -65,7 +92,7 @@ public with sharing class InspectionTriggerHandler {
    * @param oldInspections Trigger.old (delete에서는 Trigger.new가 null)
    **/
   public void afterDelete(List<Inspection__c> oldInspections) {
-    // TODO: 가맹점 Id 수집 → FranchiseInspectionDateService 호출
+    recalculateFranchiseDates(collectCountedFranchiseIds(oldInspections));
   }
 
   /**
@@ -74,7 +101,67 @@ public with sharing class InspectionTriggerHandler {
    * @param newInspections Trigger.new
    **/
   public void afterUndelete(List<Inspection__c> newInspections) {
-    // TODO: 가맹점 Id 수집 → FranchiseInspectionDateService 호출
+    recalculateFranchiseDates(collectCountedFranchiseIds(newInspections));
+  }
+
+  /**
+   * @description : 판정을 계산할 점검만 골라 InspectionService.applyJudgements에 넘긴다.
+   *                '점검완료'로 바뀐 점검, 그리고 이미 점검완료인데 점수(Roll-Up)가 바뀐 점검이 대상이다.
+   * @author      : 이은석(Kai) | 2026.10.11
+   * @param newInspections     Trigger.new
+   * @param oldInspectionsById Trigger.oldMap
+   **/
+  private void applyJudgementsOnCompletion(
+    List<Inspection__c> newInspections,
+    Map<Id, Inspection__c> oldInspectionsById
+  ) {
+    List<Inspection__c> targets = new List<Inspection__c>();
+    for (Inspection__c ins : newInspections) {
+      if (ins.Status__c != COMPLETED_STATUS) {
+        continue; // NOTE: 시정중 이후 단계는 판정 고정. 이후 점수 수정은 Field History로 추적
+      }
+      Inspection__c oldIns = oldInspectionsById.get(ins.Id);
+      Boolean becameCompleted = oldIns.Status__c != COMPLETED_STATUS;
+      Boolean scoreChanged =
+        ins.ruTotalScore__c != oldIns.ruTotalScore__c ||
+        ins.ruMaxScore__c != oldIns.ruMaxScore__c ||
+        ins.ruDeficientRequiredCount__c != oldIns.ruDeficientRequiredCount__c;
+
+      if (becameCompleted || scoreChanged) {
+        targets.add(ins);
+      }
+    }
+    // NOTE: Trigger.new를 그대로 수정하므로 SOQL · DML 없음
+    InspectionService.applyJudgements(targets);
+  }
+
+  /**
+   * @description : 최근 정기점검일 집계 대상(정기점검이면서 점검예정이 아닌 점검)의 가맹점 Id를 모은다.
+   * @author      : 이은석(Kai) | 2026.10.11
+   * @param inspections 점검 목록
+   * @return Set<Id> 가맹점 Id
+   **/
+  private Set<Id> collectCountedFranchiseIds(List<Inspection__c> inspections) {
+    Set<Id> franchiseIds = new Set<Id>();
+    for (Inspection__c ins : inspections) {
+      if (isCountedRegularInspection(ins)) {
+        franchiseIds.add(ins.Franchise__c);
+      }
+    }
+    return franchiseIds;
+  }
+
+  private Boolean isCountedRegularInspection(Inspection__c ins) {
+    return ins.RecordTypeId == REGULAR_RECORD_TYPE_ID &&
+      ins.Status__c != FranchiseInspectionDateService.SCHEDULED_STATUS;
+  }
+
+  private void recalculateFranchiseDates(Set<Id> franchiseIds) {
+    if (!franchiseIds.isEmpty()) {
+      FranchiseInspectionDateService.recalculateLastRegularInspectionDates(
+        franchiseIds
+      );
+    }
   }
 
   /**

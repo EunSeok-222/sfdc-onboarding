@@ -7,6 +7,7 @@
  *  Date         Modifier   Status      Description
  * --------------------------------------------------------------------------------------
  *  2026.10.08   Kai        Created     최초 작성
+ *  2026.10.11   Kai        Updated     트리거용 메모리 판정 메서드 applyJudgements 분리
  * ======================================================================================
  *  @see         : docs/ERD.md (R2 가맹점–점검 Lookup, 4장 Roll-Up)
  *  @note        : 판정 기준값 PASS_RATE · CORRECTION_RATE는 D6에서 Custom Metadata로 이관 예정
@@ -36,11 +37,24 @@ public with sharing class InspectionService {
       WHERE Id IN :inspectionIds AND ruMaxScore__c > 0
     ];
 
-    for (Inspection__c ins : inspections) {
-      ins.Judgement__c = decideJudgement(ins); // 메모리 계산
-    }
+    applyJudgements(inspections); // 메모리 계산
 
     update inspections; // DML 1번
+  }
+
+  /**
+   * @description : 판정 필드를 메모리에서만 채운다. SOQL · DML이 없어 before 트리거에서 호출한다.
+   *                배점 합계가 0인 점검(결과 항목 없음)은 판정을 바꾸지 않는다.
+   * @author      : 이은석(Kai) | 2026.10.11
+   * @param inspections Roll-Up 세 필드(총점 · 배점 합계 · 필수 미흡 수)가 들어 있는 점검
+   **/
+  public static void applyJudgements(List<Inspection__c> inspections) {
+    for (Inspection__c ins : inspections) {
+      if (ins.ruMaxScore__c == null || ins.ruMaxScore__c <= 0) {
+        continue;
+      }
+      ins.Judgement__c = decideJudgement(ins);
+    }
   }
 
   /**

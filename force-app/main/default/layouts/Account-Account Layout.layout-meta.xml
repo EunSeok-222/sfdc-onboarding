@@ -91,6 +91,10 @@
                 <behavior>Edit</behavior>
                 <field>OpenDate__c</field>
             </layoutItems>
+            <layoutItems>
+                <behavior>Readonly</behavior>
+                <field>LastRegularInspectionDate__c</field>
+            </layoutItems>
 </layoutColumns>
         <style>TwoColumnsTopToBottom</style>
     </layoutSections>

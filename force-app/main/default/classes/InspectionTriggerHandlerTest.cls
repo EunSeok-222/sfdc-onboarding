@@ -69,10 +69,28 @@ private class InspectionTriggerHandlerTest {
     Database.SaveResult result = Database.update(ins, false);
     Test.stopTest();
 
-    // TODO(Kai): 아래 3가지를 Assert로 확인한다
-    //   1) 저장이 실패했는지              → result.isSuccess()
-    //   2) 오류 메시지가 우리가 만든 문구인지 → result.getErrors()[0].getMessage()에 '바꿀 수 없습니다' 포함
-    //   3) DB의 상태가 그대로 '종료'인지   → SOQL로 다시 조회
+    // 1) 저장이 실패했는가 — 먼저 확인해야 2)에서 getErrors()[0]이 빈 목록 오류(ListException)로 터지지 않는다
+    Assert.isFalse(result.isSuccess(), '종료 → 점검예정은 차단되어야 한다');
+
+    // 2) 다른 이유(Validation Rule · 권한 등)가 아니라 상태 전이 규칙 때문에 막혔는가
+    Database.Error error = result.getErrors()[0];
+    Assert.isTrue(
+      error.getMessage().contains('바꿀 수 없습니다'),
+      '상태 전이 오류 메시지여야 한다. 실제: ' + error.getMessage()
+    );
+
+    // 3) 오류가 상태 필드에 붙었는가 — 화면에서 상태 필드 아래에 메시지가 보이는 근거
+    Assert.isTrue(
+      error.getFields().contains('Status__c'),
+      '오류는 상태 필드에 표시되어야 한다. 실제: ' + error.getFields()
+    );
+
+    // 4) DB 값이 그대로인가 — 저장 실패를 응답만 믿지 않고 실제 데이터로 확인
+    Assert.areEqual(
+      '종료',
+      [SELECT Status__c FROM Inspection__c WHERE Id = :ins.Id].Status__c,
+      '차단된 저장 후에도 상태는 종료로 남아 있어야 한다'
+    );
   }
 
   // ---------------------------------------------------------------- 판정

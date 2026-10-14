@@ -1,0 +1,99 @@
+/* ======================================================================================
+ * @description : 내 점검 목록 스타일 (상태 칩 · 카드 2개 · 페이저)
+ * @layer       : LWC
+ * @author      : 이은석(Kai)
+ * ======================================================================================
+ *  Date         Modifier   Status      Description
+ * --------------------------------------------------------------------------------------
+ *  2026.10.13   Kai        Created     최초 작성 (spinner 영역 최소 높이)
+ *  2026.10.13   Kai        Updated     D7 설계 초안(SC-04) 레이아웃 적용 — 칩 · 표 제목 · 페이지 번호
+ *  2026.10.13   Kai        Updated     칩을 SLDS 버튼으로 통일(높이 축소), 표 카드 여백 · 테두리 추가
+ * ======================================================================================
+ *  @note        : 색은 SLDS 팔레트(설계 초안과 동일), 간격 · 크기 · 모서리는 --wdls-g-* 토큰
+ * ======================================================================================*/
+:host {
+  --wsds-list-brand: #0176d3;
+  --wsds-list-text: #181818;
+  --wsds-list-text-weak: #5c5c5c;
+}
+
+.wsds-inspection-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--wdls-g-space-between-card, 16px);
+}
+
+.wsds-inspection-list__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--wdls-g-spacing-sm, 8px);
+}
+
+.wsds-inspection-list__table-title {
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.wsds-inspection-list__count {
+  color: var(--wsds-list-brand);
+}
+
+.wsds-inspection-list__sort-caption {
+  font-size: var(--wdls-g-font-size-xs, 12px);
+  color: var(--wsds-list-text-weak);
+}
+
+/* DESC: 표를 카드 안 테두리 상자로 감싸 카드 가장자리와 띄운다. 0건이어도 spinner가 보이게 최소 높이 확보 */
+/* WARN: overflow: hidden을 주면 컬럼 머리글 메뉴(▼) 드롭다운이 잘린다 */
+.wsds-inspection-list__table {
+  min-height: calc(var(--wdls-g-spacing-xl, 32px) * 4);
+  border: var(--wdls-g-border-width-default, 1px) solid #e5e5e5;
+  border-radius: var(--wdls-g-border-radius-sm, 4px);
+}
+
+.wsds-inspection-list__pager {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--wdls-g-spacing-sm, 8px);
+}
+
+.wsds-inspection-list__range {
+  font-size: var(--wdls-g-font-size-xs, 12px);
+  color: var(--wsds-list-text-weak);
+}
+
+.wsds-inspection-list__pages {
+  display: flex;
+  align-items: center;
+  gap: var(--wdls-g-spacing-xs, 4px);
+}
+
+.wsds-inspection-list__page {
+  min-width: 36px;
+  min-height: 36px;
+  padding: 0 var(--wdls-g-spacing-sm, 8px);
+  border: none;
+  border-radius: var(--wdls-g-border-radius-sm, 4px);
+  background: transparent;
+  color: var(--wsds-list-text-weak);
+  font-family: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.wsds-inspection-list__page:hover {
+  background: #f3f3f3;
+}
+
+.wsds-inspection-list__page:focus-visible {
+  outline: 2px solid var(--wsds-list-brand);
+  outline-offset: 1px;
+}
+
+.wsds-inspection-list__page--current {
+  color: var(--wsds-list-text);
+  font-weight: 700;
+  cursor: default;
+}

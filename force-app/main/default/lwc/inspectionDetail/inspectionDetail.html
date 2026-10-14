@@ -1,0 +1,33 @@
+<template>
+  <!-- DESC: D7 설계 초안(SC-02) 배치 — 왼쪽 기본 정보 폼, 오른쪽 판정. 좁은 화면에서는 위아래로 쌓인다 -->
+  <!-- NOTE: 설계 초안의 가운데 칸(결과 항목 편집기)은 D8 범위라 지금은 2단 -->
+  <lightning-layout multiple-rows>
+    <lightning-layout-item
+      size="12"
+      large-device-size="8"
+      padding="horizontal-small"
+    >
+      <lightning-card title="점검 기본 정보" icon-name="standard:record">
+        <div class="slds-var-p-horizontal_medium">
+          <lightning-record-form
+            record-id={recordId}
+            object-api-name="Inspection__c"
+            layout-type="Full"
+            mode="view"
+            onsuccess={handleSuccess}
+            onerror={handleError}
+          ></lightning-record-form>
+        </div>
+      </lightning-card>
+    </lightning-layout-item>
+    <lightning-layout-item
+      size="12"
+      large-device-size="4"
+      padding="horizontal-small"
+    >
+      <c-inspection-judgement-panel
+        record-id={recordId}
+      ></c-inspection-judgement-panel>
+    </lightning-layout-item>
+  </lightning-layout>
+</template>

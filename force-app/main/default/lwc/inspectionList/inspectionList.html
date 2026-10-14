@@ -1,0 +1,167 @@
+<template>
+  <div class="wsds-inspection-list">
+    <!-- DESC: 카드 1 — 상태 칩(위) + 검색 조건(아래). SV는 검색보다 "무엇부터 하나"가 먼저라 칩을 위에 둔다 -->
+    <lightning-card title="내 점검" icon-name="custom:custom63">
+      <div class="slds-var-p-horizontal_medium">
+        <div class="wsds-inspection-list__chips" role="group" aria-label="상태">
+          <template for:each={chips} for:item="chip">
+            <button
+              key={chip.value}
+              type="button"
+              class={chip.className}
+              data-value={chip.value}
+              aria-pressed={chip.isSelected}
+              onclick={handleChipClick}
+            >
+              {chip.label}
+            </button>
+          </template>
+        </div>
+
+        <lightning-layout
+          multiple-rows
+          vertical-align="end"
+          class="slds-var-m-top_small"
+        >
+          <lightning-layout-item
+            size="12"
+            medium-device-size="4"
+            padding="horizontal-small"
+          >
+            <lightning-input
+              type="search"
+              label="가맹점명"
+              placeholder="매장명 검색"
+              value={filters.keyword}
+              onchange={handleKeywordChange}
+            ></lightning-input>
+          </lightning-layout-item>
+          <lightning-layout-item
+            size="12"
+            medium-device-size="2"
+            padding="horizontal-small"
+          >
+            <lightning-combobox
+              name="judgement"
+              label="판정"
+              options={judgementOptions}
+              value={filters.judgement}
+              onchange={handleFilterChange}
+            ></lightning-combobox>
+          </lightning-layout-item>
+          <lightning-layout-item
+            size="6"
+            medium-device-size="2"
+            padding="horizontal-small"
+          >
+            <lightning-input
+              type="date"
+              name="dateFrom"
+              label="점검일 (시작)"
+              value={filters.dateFrom}
+              onchange={handleFilterChange}
+            ></lightning-input>
+          </lightning-layout-item>
+          <lightning-layout-item
+            size="6"
+            medium-device-size="2"
+            padding="horizontal-small"
+          >
+            <lightning-input
+              type="date"
+              name="dateTo"
+              label="점검일 (종료)"
+              value={filters.dateTo}
+              onchange={handleFilterChange}
+            ></lightning-input>
+          </lightning-layout-item>
+          <lightning-layout-item
+            size="12"
+            medium-device-size="2"
+            padding="horizontal-small"
+          >
+            <lightning-button
+              variant="brand"
+              label="검색"
+              onclick={handleSearch}
+            ></lightning-button>
+            <lightning-button
+              label="초기화"
+              class="slds-var-m-left_x-small"
+              onclick={handleReset}
+            ></lightning-button>
+          </lightning-layout-item>
+        </lightning-layout>
+
+        <template lwc:if={validationMessage}>
+          <p class="slds-var-m-top_x-small slds-text-color_error">
+            {validationMessage}
+          </p>
+        </template>
+      </div>
+    </lightning-card>
+
+    <!-- DESC: 카드 2 — 표 제목(칩 이름 + 건수 · 정렬 기준) · datatable · 페이저 -->
+    <lightning-card class="wsds-inspection-list__table-card">
+      <div slot="title" class="wsds-inspection-list__table-title">
+        {selectedChipLabel}
+        <span class="wsds-inspection-list__count">{totalCount}</span>건
+      </div>
+      <p slot="actions" class="wsds-inspection-list__sort-caption">
+        {sortCaption}
+      </p>
+
+      <div class="slds-var-p-horizontal_medium">
+        <div class="wsds-inspection-list__table slds-is-relative">
+          <template lwc:if={isLoading}>
+            <lightning-spinner
+              alternative-text="불러오는 중"
+              size="medium"
+            ></lightning-spinner>
+          </template>
+          <lightning-datatable
+            key-field="Id"
+            data={rows}
+            columns={columns}
+            hide-checkbox-column
+            sorted-by={sortBy}
+            sorted-direction={sortDirection}
+            default-sort-direction="asc"
+            onsort={handleSort}
+          ></lightning-datatable>
+        </div>
+      </div>
+
+      <div slot="footer" class="wsds-inspection-list__pager">
+        <span class="wsds-inspection-list__range">{rangeLabel}</span>
+        <nav class="wsds-inspection-list__pages" aria-label="페이지">
+          <lightning-button
+            label="이전"
+            icon-name="utility:chevronleft"
+            disabled={isFirstPage}
+            onclick={handlePrevious}
+          ></lightning-button>
+          <template for:each={pageButtons} for:item="btn">
+            <button
+              key={btn.page}
+              type="button"
+              class={btn.className}
+              data-page={btn.page}
+              aria-current={btn.ariaCurrent}
+              onclick={handlePageClick}
+            >
+              {btn.page}
+            </button>
+          </template>
+          <lightning-button
+            label="다음"
+            icon-name="utility:chevronright"
+            icon-position="right"
+            disabled={isLastPage}
+            onclick={handleNext}
+          ></lightning-button>
+        </nav>
+      </div>
+    </lightning-card>
+  </div>
+</template>

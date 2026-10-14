@@ -1,0 +1,58 @@
+<template>
+  <lightning-card title="판정" icon-name="standard:approval">
+    <div class="slds-var-p-horizontal_medium">
+      <template lwc:if={inspection}>
+        <div class="wsds-judgement-panel__score">
+          <span class="wsds-judgement-panel__total">{totalScore}</span>
+          <span class="wsds-judgement-panel__max">/ {maxScore}점</span>
+        </div>
+
+        <template lwc:if={hasResults}>
+          <div
+            class="wsds-judgement-panel__bar"
+            role="progressbar"
+            aria-valuemin="0"
+            aria-valuemax="100"
+            aria-valuenow={achievementRate}
+            aria-label="달성률"
+          >
+            <div class={barFillClass} style={barFillStyle}></div>
+            <div class="wsds-judgement-panel__marker" style={markerStyle}></div>
+          </div>
+          <div class="wsds-judgement-panel__caption">
+            <span>달성률 {achievementRate}%</span>
+            <span>합격선 {passRatePercent}%</span>
+          </div>
+        </template>
+        <template lwc:else>
+          <p class="wsds-judgement-panel__caption">
+            입력된 점검 결과가 없습니다.
+          </p>
+        </template>
+
+        <div class={badgeClass}>{judgementLabel}</div>
+
+        <dl class="wsds-judgement-panel__facts">
+          <div class="wsds-judgement-panel__fact">
+            <dt class="wsds-judgement-panel__label">미흡한 필수 항목</dt>
+            <dd class={deficientValueClass}>{deficientRequiredCount}건</dd>
+          </div>
+        </dl>
+
+        <template lwc:if={hasDeficientRequired}>
+          <div class="wsds-judgement-panel__warning" role="note">
+            <p class="wsds-judgement-panel__warning-title">
+              미흡한 필수 항목이 있습니다 (BR-03)
+            </p>
+            <p class="wsds-judgement-panel__warning-text">
+              필수 항목이 하나라도 미흡이면 총점과 관계없이 <b>불합격</b>입니다.
+            </p>
+          </div>
+        </template>
+      </template>
+      <template lwc:elseif={errorMessage}>
+        <p class="slds-text-color_error">{errorMessage}</p>
+      </template>
+    </div>
+  </lightning-card>
+</template>

@@ -1,0 +1,166 @@
+/* ======================================================================================
+ * @description : 점검 판정 패널 스타일 (총점 · 달성률 바 · 판정 배지 · BR-03 경고)
+ * @layer       : LWC
+ * @author      : 이은석(Kai)
+ * ======================================================================================
+ *  Date         Modifier   Status      Description
+ * --------------------------------------------------------------------------------------
+ *  2026.10.13   Kai        Created     최초 작성
+ *  2026.10.13   Kai        Updated     D7 설계 초안 디자인 적용, 상태 색을 회사 토큰 → SLDS 색으로 변경
+ * ======================================================================================
+ *  @note        : 색은 SLDS 팔레트(설계 초안과 동일). 회사 CSS 기준 "SLDS 등 기존 체계가 있으면 그것을 따른다"에 따름
+ *                 간격 · 크기 · 모서리는 --wdls-g-* 토큰 (공통 시트가 없어 var() 기본값을 함께 둔다)
+ * ======================================================================================*/
+:host {
+  /* DESC: 상태 색은 여기서만 정의하고 아래 규칙은 이 변수만 쓴다 */
+  --wsds-judgement-pass: #2e844a;
+  --wsds-judgement-correction: #fe9339;
+  --wsds-judgement-fail: #ba0517;
+  --wsds-judgement-none: #747474;
+  --wsds-judgement-track: #e5e5e5;
+  --wsds-judgement-text: #181818;
+  --wsds-judgement-text-weak: #5c5c5c;
+  --wsds-judgement-warning-bg: #fef5e8;
+  --wsds-judgement-warning-title: #8c4b02;
+  --wsds-judgement-warning-text: #5c3a08;
+}
+
+.wsds-judgement-panel__score {
+  display: flex;
+  align-items: baseline;
+  gap: var(--wdls-g-spacing-xs, 4px);
+}
+
+.wsds-judgement-panel__total {
+  font-size: 2.75rem;
+  font-weight: 700;
+  line-height: 1;
+  color: var(--wsds-judgement-text);
+}
+
+.wsds-judgement-panel__max {
+  font-size: var(--wdls-g-font-size-md, 16px);
+  color: var(--wsds-judgement-text-weak);
+}
+
+.wsds-judgement-panel__bar {
+  position: relative;
+  height: 10px;
+  margin-top: var(--wdls-g-spacing-md, 16px);
+  background: var(--wsds-judgement-track);
+  border-radius: var(--wdls-g-border-radius-full, 9999px);
+}
+
+.wsds-judgement-panel__fill {
+  height: 100%;
+  border-radius: var(--wdls-g-border-radius-full, 9999px);
+  transition: width var(--wdls-g-motion-duration-normal, 300ms)
+    var(--wdls-g-motion-easing-out, cubic-bezier(0, 0, 0.2, 1));
+}
+
+/* DESC: 합격선 위치 세로선 — 바보다 위아래로 조금 길게 */
+.wsds-judgement-panel__marker {
+  position: absolute;
+  top: calc(var(--wdls-g-spacing-xs, 4px) * -1);
+  bottom: calc(var(--wdls-g-spacing-xs, 4px) * -1);
+  width: 2px;
+  background: var(--wsds-judgement-text);
+}
+
+.wsds-judgement-panel__caption {
+  display: flex;
+  justify-content: space-between;
+  margin-top: var(--wdls-g-spacing-xs, 4px);
+  font-size: var(--wdls-g-font-size-xs, 12px);
+  color: var(--wsds-judgement-text-weak);
+}
+
+.wsds-judgement-panel__badge {
+  display: inline-flex;
+  align-items: center;
+  margin-top: var(--wdls-g-spacing-md, 16px);
+  padding: var(--wdls-g-spacing-sm, 8px) 14px;
+  border-radius: var(--wdls-g-border-radius-sm, 4px);
+  font-size: 15px;
+  font-weight: 700;
+  color: #ffffff;
+}
+
+.wsds-judgement-panel__fill--pass,
+.wsds-judgement-panel__badge--pass {
+  background: var(--wsds-judgement-pass);
+}
+
+.wsds-judgement-panel__fill--correction,
+.wsds-judgement-panel__badge--correction {
+  background: var(--wsds-judgement-correction);
+}
+
+.wsds-judgement-panel__fill--fail,
+.wsds-judgement-panel__badge--fail {
+  background: var(--wsds-judgement-fail);
+}
+
+.wsds-judgement-panel__fill--none {
+  background: var(--wsds-judgement-none);
+}
+
+/* WARN: 주황 바탕에 흰 글씨는 대비가 낮아(약 2:1) 시정 필요 배지만 어두운 글씨 */
+.wsds-judgement-panel__badge--correction {
+  color: var(--wsds-judgement-text);
+}
+
+.wsds-judgement-panel__badge--none {
+  background: #efefef;
+  color: #444444;
+}
+
+.wsds-judgement-panel__facts {
+  margin: var(--wdls-g-spacing-md, 16px) 0 0;
+  padding-top: var(--wdls-g-spacing-sm, 8px);
+  border-top: var(--wdls-g-border-width-default, 1px) solid
+    var(--wsds-judgement-track);
+  font-size: var(--wdls-g-font-size-xs, 12px);
+  line-height: 1.8;
+}
+
+.wsds-judgement-panel__fact {
+  display: flex;
+  justify-content: space-between;
+}
+
+.wsds-judgement-panel__label {
+  color: var(--wsds-judgement-text-weak);
+}
+
+.wsds-judgement-panel__value {
+  margin: 0;
+  font-weight: 700;
+}
+
+.wsds-judgement-panel__value--alert {
+  color: var(--wsds-judgement-fail);
+}
+
+.wsds-judgement-panel__warning {
+  margin-top: var(--wdls-g-spacing-sm, 8px);
+  padding: var(--wdls-g-spacing-sm, 8px) 14px;
+  background: var(--wsds-judgement-warning-bg);
+  border: var(--wdls-g-border-width-default, 1px) solid
+    var(--wsds-judgement-correction);
+  border-radius: var(--wdls-g-border-radius-sm, 4px);
+}
+
+.wsds-judgement-panel__warning-title {
+  margin: 0 0 var(--wdls-g-spacing-xs, 4px);
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--wsds-judgement-warning-title);
+}
+
+.wsds-judgement-panel__warning-text {
+  margin: 0;
+  font-size: var(--wdls-g-font-size-xs, 12px);
+  line-height: 1.6;
+  color: var(--wsds-judgement-warning-text);
+}

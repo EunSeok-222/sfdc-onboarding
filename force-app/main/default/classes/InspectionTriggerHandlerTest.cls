@@ -7,6 +7,7 @@
  *  Date         Modifier   Status      Description
  * --------------------------------------------------------------------------------------
  *  2026.10.11   Kai        Created     최초 작성 (초안: 정상 · 불허 · 벌크 200건)
+ *  2026.10.12   Kai        Updated     D6 최근 정기점검일 테스트 T-09~T-16 추가 (TestDataFactory 사용)
  * ======================================================================================
  *  @see         : Inspection.trigger, FranchiseInspectionDateService.cls, InspectionService.cls
  *  @note        : SV 권한(runAs) 시나리오와 InspectionService.judgeInspections는 D6에서 보강
@@ -268,7 +269,249 @@ private class InspectionTriggerHandlerTest {
     Assert.areEqual(Date.newInstance(2026, 10, 2), getLastDate(stores[1].Id));
   }
 
+  // ---------------------------------------------------------------- D6 최근 정기점검일 (T-09 ~ T-16)
+  // NOTE: 집계 대상 = Regular 레코드 유형 AND 점검예정이 아닌 점검. 가맹점은 @TestSetup의 TEST-A · TEST-B를 SOQL로 다시 조회한다
+
+  // T-09 정기점검(점검완료) insert → 가맹점 최근 정기점검일 세팅
+  @isTest
+  static void lastDate_regularInsert_set() {
+    Account store = getStore('TEST-A');
+    Date inspectionDate = Date.newInstance(2026, 10, 1);
+
+    Test.startTest();
+    createInspection(
+      store,
+      TestDataFactory.STATUS_COMPLETED,
+      TestDataFactory.RT_REGULAR,
+      inspectionDate
+    );
+    Test.stopTest();
+
+    Assert.areEqual(
+      inspectionDate,
+      getLastDate(store.Id),
+      '정기점검 insert 시 최근 정기점검일이 세팅되어야 한다'
+    );
+  }
+
+  // T-10 점검예정 상태의 정기점검 → 집계 제외
+  @isTest
+  static void lastDate_scheduled_excluded() {
+    Account store = getStore('TEST-A');
+
+    Test.startTest();
+    createInspection(
+      store,
+      TestDataFactory.STATUS_SCHEDULED,
+      TestDataFactory.RT_REGULAR,
+      Date.newInstance(2026, 10, 1)
+    );
+    Test.stopTest();
+
+    Assert.isNull(
+      getLastDate(store.Id),
+      '점검예정은 아직 방문 전이라 집계 대상이 아니다'
+    );
+  }
+
+  // T-11 불시점검 · 재점검 → 집계 제외 (Regular 레코드 유형만 대상)
+  @isTest
+  static void lastDate_nonRegular_excluded() {
+    Account store = getStore('TEST-A');
+    // WARN: 재점검은 VR ReinspectionRequiresOriginal 때문에 원 점검이 필수.
+    //       원 점검을 점검예정으로 두어야 원 점검 자체가 집계되지 않는다
+    Inspection__c original = createInspection(
+      store,
+      TestDataFactory.STATUS_SCHEDULED,
+      TestDataFactory.RT_REGULAR,
+      Date.newInstance(2026, 10, 1)
+    );
+
+    Test.startTest();
+    createInspection(
+      store,
+      TestDataFactory.STATUS_COMPLETED,
+      TestDataFactory.RT_UNANNOUNCED,
+      Date.newInstance(2026, 10, 3)
+    );
+    Inspection__c reinspection = TestDataFactory.createInspections(
+      new List<Account>{ store },
+      1,
+      TestDataFactory.STATUS_COMPLETED,
+      TestDataFactory.RT_REINSPECTION,
+      Date.newInstance(2026, 10, 5),
+      false
+    )[0];
+    reinspection.OriginalInspection__c = original.Id;
+    insert reinspection;
+    Test.stopTest();
+
+    Assert.isNull(
+      getLastDate(store.Id),
+      '불시점검 · 재점검은 점검완료여도 집계 대상이 아니다 (Regular 레코드 유형만)'
+    );
+  }
+
+  // T-12 점검의 가맹점을 A → B로 변경 → 양쪽 모두 재계산
+  @isTest
+  static void lastDate_franchiseMoved_bothRecalculated() {
+    Account storeA = getStore('TEST-A');
+    Account storeB = getStore('TEST-B');
+    Date inspectionDate = Date.newInstance(2026, 10, 1);
+    Inspection__c ins = createInspection(
+      storeA,
+      TestDataFactory.STATUS_COMPLETED,
+      TestDataFactory.RT_REGULAR,
+      inspectionDate
+    );
+
+    Test.startTest();
+    update new Inspection__c(Id = ins.Id, Franchise__c = storeB.Id);
+    Test.stopTest();
+
+    Assert.isNull(
+      getLastDate(storeA.Id),
+      '점검이 빠져나간 가맹점은 null로 되돌아가야 한다 (옛 날짜가 남으면 안 됨)'
+    );
+    Assert.areEqual(
+      inspectionDate,
+      getLastDate(storeB.Id),
+      '점검이 들어온 가맹점에 날짜가 반영되어야 한다'
+    );
+  }
+
+  // T-13 점검일을 더 이른 날짜로 수정 → 최근 정기점검일도 내려감
+  @isTest
+  static void lastDate_dateMovedEarlier_lowered() {
+    Account store = getStore('TEST-A');
+    Inspection__c ins = createInspection(
+      store,
+      TestDataFactory.STATUS_COMPLETED,
+      TestDataFactory.RT_REGULAR,
+      Date.newInstance(2026, 10, 10)
+    );
+    Date earlierDate = Date.newInstance(2026, 10, 1);
+
+    Test.startTest();
+    update new Inspection__c(Id = ins.Id, InspectionDate__c = earlierDate);
+    Test.stopTest();
+
+    // NOTE: 더 이른 날짜로 바꿔야 'MAX(기존, 새 값)'만 남기는 버그와 '다시 집계'를 구분할 수 있다
+    Assert.areEqual(
+      earlierDate,
+      getLastDate(store.Id),
+      '점검일을 앞당기면 최근 정기점검일도 다시 집계되어 내려가야 한다'
+    );
+  }
+
+  // T-14 최신 정기점검 삭제 → 그다음 최근 점검일로 내려감
+  @isTest
+  static void lastDate_latestDeleted_fallsBack() {
+    Account store = getStore('TEST-A');
+    Date olderDate = Date.newInstance(2026, 10, 1);
+    createInspection(
+      store,
+      TestDataFactory.STATUS_COMPLETED,
+      TestDataFactory.RT_REGULAR,
+      olderDate
+    );
+    Inspection__c latest = createInspection(
+      store,
+      TestDataFactory.STATUS_COMPLETED,
+      TestDataFactory.RT_REGULAR,
+      Date.newInstance(2026, 10, 5)
+    );
+
+    Test.startTest();
+    delete latest;
+    Test.stopTest();
+
+    Assert.areEqual(
+      olderDate,
+      getLastDate(store.Id),
+      '최신 점검을 삭제하면 남은 점검 중 가장 최근 날짜로 내려가야 한다'
+    );
+  }
+
+  // T-15 삭제한 최신 정기점검 복원 → 다시 집계
+  @isTest
+  static void lastDate_undeleted_restored() {
+    Account store = getStore('TEST-A');
+    createInspection(
+      store,
+      TestDataFactory.STATUS_COMPLETED,
+      TestDataFactory.RT_REGULAR,
+      Date.newInstance(2026, 10, 1)
+    );
+    Date latestDate = Date.newInstance(2026, 10, 5);
+    Inspection__c latest = createInspection(
+      store,
+      TestDataFactory.STATUS_COMPLETED,
+      TestDataFactory.RT_REGULAR,
+      latestDate
+    );
+    delete latest;
+
+    Test.startTest();
+    undelete latest;
+    Test.stopTest();
+
+    Assert.areEqual(
+      latestDate,
+      getLastDate(store.Id),
+      '휴지통에서 복원한 점검이 다시 집계되어야 한다'
+    );
+  }
+
+  // T-16 집계와 무관한 필드(판정)만 수정 → 가맹점 재계산 DML 없음
+  @isTest
+  static void lastDate_unrelatedChange_noAccountDml() {
+    Account store = getStore('TEST-A');
+    Date inspectionDate = Date.newInstance(2026, 10, 1);
+    Inspection__c ins = createInspection(
+      store,
+      TestDataFactory.STATUS_COMPLETED,
+      TestDataFactory.RT_REGULAR,
+      inspectionDate
+    );
+
+    Test.startTest();
+    Integer dmlBefore = Limits.getDmlStatements();
+    update new Inspection__c(Id = ins.Id, Judgement__c = '시정 필요');
+    Integer dmlUsed = Limits.getDmlStatements() - dmlBefore;
+    Test.stopTest();
+
+    // NOTE: 테스트 컨텍스트는 테스트 자신의 update도 1회로 센다 → 가맹점 update가 없으면 정확히 1
+    Assert.areEqual(
+      1,
+      dmlUsed,
+      '집계에 영향 없는 수정은 가맹점 update를 일으키지 않아야 한다 (affectsDate 변경 감지)'
+    );
+    Assert.areEqual(
+      inspectionDate,
+      getLastDate(store.Id),
+      '재계산을 건너뛰어도 기존 최근 정기점검일은 그대로여야 한다'
+    );
+  }
+
   // ---------------------------------------------------------------- 테스트 데이터 도우미
+
+  /** TestDataFactory로 점검 1건을 만들어 insert한다 */
+  private static Inspection__c createInspection(
+    Account store,
+    String status,
+    String recordTypeDeveloperName,
+    Date inspectionDate
+  ) {
+    return TestDataFactory.createInspections(
+      new List<Account>{ store },
+      1,
+      status,
+      recordTypeDeveloperName,
+      inspectionDate,
+      true
+    )[0];
+  }
 
   private static Account getStore(String storeCode) {
     return [SELECT Id FROM Account WHERE StoreCode__c = :storeCode];
@@ -335,5 +578,47 @@ private class InspectionTriggerHandlerTest {
         Score__c = scores[3]
       )
     };
+  }
+
+  // ───────── 아래는 Kai 작성 구역 (T-01~T-08) — 건드리지 말 것 ─────────
+
+  // T-02 점검완료 → 점검예정 (역방향) 은 차단되어야 한다
+  @IsTest
+  static void statusTransition_reverseFromCompleted_addsError() {
+    // given: 점검완료 상태인 점검 1건
+    //        (@TestSetup이 만든 데이터를 SOQL로 조회해서 쓰거나,
+    //         TestDataFactory로 점검예정 1건 만들고 점검완료로 한 번 올린다)
+    Account franchise = TestDataFactory.createFranchises(1, true)[0];
+    Inspection__c ins = TestDataFactory.createInspections(
+      new List<Account>{ franchise },
+      1,
+      TestDataFactory.STATUS_SCHEDULED,
+      TestDataFactory.RT_REGULAR,
+      Date.today(),
+      true
+    )[0];
+    ins.Status__c = '점검완료';
+    update ins;
+
+    Test.startTest();
+    ins.Status__c = '점검예정'; // 역방향
+    Database.SaveResult result = Database.update(ins, false); // ← 부분 저장
+    Test.stopTest();
+
+    Assert.isFalse(
+      result.isSuccess(),
+      '점검완료에서 점검예정으로 되돌리는 전이는 막혀야 함'
+    );
+
+    Assert.isTrue(
+      result.getErrors()[0].getMessage().contains('바꿀 수 없습니다'),
+      '전이 불가 사유가 사용자에게 전달되어야 함'
+    );
+
+    Assert.areEqual(
+      'Status__c',
+      result.getErrors()[0].getFields()[0],
+      '오류는 상태 필드에 걸려야 화면에서 어느 필드가 문제인지 보인다'
+    );
   }
 }

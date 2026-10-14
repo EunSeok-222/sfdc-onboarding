@@ -139,3 +139,63 @@
 - [ ] **페널티 자동 생성의 실행 컨텍스트** (D2 → D4 이월): BR-08 구현 시 결정. 날짜 재계산과 같은 `without sharing` 분리 패턴이 후보
 - [ ] **sf CLI `--json`이 큰 로그에서 멈춤**: 400건 실행 로그(약 8.9MB)에서 `Maximum call stack size exceeded`. org 실행은 정상. 큰 로그는 `--json` 없이 실행
 - [ ] **이월**: `countInspectionsByFranchise` 실행 검증, `BULK-` 데이터 정리, M-D 자식 권한, Queue 소유 점검 가시성, 역할별 대시보드 캡처, Flow `UniqueName` 정리, sf CLI `org login web` hang
+
+## 10/12 (월) D6 — 테스트 · 비동기 Apex · 설정 데이터 | 결정과 이유
+
+1. **판정 테스트는 DB를 타지 않기로 했다** — 경계값(80·79·60·59)마다 가맹점·점검·결과
+   항목을 insert하면 SOQL·DML이 배로 늘어난다. 판정은 Roll-Up 세 값만 보는 순수 계산이고
+   Roll-Up은 읽기 전용이라, `JSON.deserialize`로 값을 주입했다. 7개가 3~20ms에 끝난다.
+2. **실패 케이스는 "막혔다"가 아니라 "이 이유로 막혔다"까지 검증하기로 했다** —
+   저장 실패만 보면 다른 이유로 막혀도 통과한다. `Database.update(ins, false)`로 부분
+   저장해 `SaveResult`를 받고, 오류 메시지와 `getFields()[0] == 'Status__c'`까지 Assert.
+   예외를 던지는 `update ins;`는 테스트 자체를 죽이므로 쓰지 않았다.
+3. **BR-05 지연 처리는 Batch + Schedulable로 갔다** — 기능이 아니라 "한 트랜잭션 한도를
+   넘는가"로 골랐다. 가맹점이 늘면 쿼리 행 50,000을 반드시 넘고, execute마다 한도가
+   리셋되는 청크 처리라야 건수에 비례해 안전하다. Queueable은 한 트랜잭션 안에서 끝나야
+   해서 탈락(BR-08 페널티 생성이 거기에 맞다), @future는 원시 타입·체이닝 불가,
+   Scheduled Flow는 단위 테스트로 보장하기 어려워 제외 — D5에서 정한 기준 그대로.
+4. **배치는 호출만 하고 로직은 Service에 두기로 했다** —
+   `execute(bc, scope) { CorrectiveActionService.markOverdue(scope); }`. D5에서 정한
+   "트리거는 호출만, 로직은 핸들러·서비스" 원칙을 실행 방식만 바꿔 그대로 적용했다.
+   덕분에 같은 로직을 배치·화면·테스트 어디서든 같은 입구로 부른다.
+5. **기준값은 Custom Setting이 아니라 Custom Metadata로 뺐다** — Custom Setting은
+   정의만 배포되고 데이터는 org마다 다시 입력해야 한다. 합격선·시정선은 개발 org에서
+   운영 org로 값까지 따라가야 하는 업무 정책이라 `InspectionRule__mdt`가 맞다.
+   비활성화 스위치는 org·사용자마다 달라야 하므로 Custom Setting(Hierarchy),
+   화면 문구는 번역 대상이라 Custom Label로 나눴다.
+
+### 겪은 것
+
+- `Test.stopTest()`가 없으면 배치가 실행되지 않는다. **테스트는 통과하는데 커버리지가
+  0%로 나와** 한참 헤맸다. 비동기는 stopTest 시점에 비로소 돌아간다.
+- 상수를 메타데이터로 바꾸기 전/후에 `ApexTestResult`를 조회해 비교했다. 경계값 테스트
+  7개가 양쪽 모두 Pass — 구조만 바뀌고 판정 결과는 그대로라는 증명. 테스트를 먼저 쓴
+  이유가 이 장면이었다.
+
+### 내일(D7)로 넘긴 것
+
+- 과제인 화면 2개 설계 초안 완료(SC-02 상세 · SC-04 목록). 오전 발표 후 구현 착수.
+
+## 10/13 (화) D7 — LWC 기초 · 데이터 연동 | 결정과 이유
+
+1. **상세(SC-02)는 `lightning-record-form`(LDS)로, Apex 없이 갔다** — 레코드 1건 CRUD는
+   캐시·동기화·FLS를 플랫폼이 준다. 판정 패널만 `@wire(getRecord)`: `recordId` 하나로
+   조회가 정해지고, record-form과 LDS 캐시를 공유해 저장 직후 새로고침 없이 판정이 바뀐다.
+2. **목록(SC-04)은 칩·검색·정렬·페이징을 imperative 한 경로로 통일했다** — 처음엔 칩만
+   `@wire`로 생각했으나, 같은 Apex를 두 방식으로 부르면 늦게 온 응답이 화면을 덮어쓰고 조건
+   객체도 둘로 갈라진다. 정렬·페이징은 서버(`ORDER BY` · `LIMIT/OFFSET`, OFFSET 최대 2,000은
+   알고 선택). 같은 점검일은 `Name`으로 순서를 고정해 페이지 경계의 중복·누락을 막고,
+   화면은 마지막 요청의 응답만 반영한다.
+3. **칩은 LWC가 "칩 → 상태 목록"을 갖고, Apex는 `Status__c IN :statuses`만 한다** — 업무
+   묶음이 바뀌어도 Apex는 그대로. 칩은 해야 할 점검(점검예정) · 시정 대기(시정중+지연) ·
+   전체 3개. 「점검중」은 요건서 §3과 D5 전이표 어디에도 없는 값이라 뺐다(설계 초안 오류).
+4. **권한은 관리자가 아니라 김 길동 계정으로 검증했다** — 판정(`Judgement__c`)의 레이아웃
+   Read-Only + FLS 읽기 전용은 권한 매트릭스 V1.2대로 이미 걸려 있었고, 관리자에게 연필이
+   보인 건 "Edit Read Only Fields" 권한 때문이었다. 반대로 새 Apex 클래스는 관리자만 실행할 수
+   있어 김 길동 목록이 막혔다 → 권한 집합 「점검 목록 조회」(`InspectionListAccess`) 부여.
+   조회가 `with sharing` + `USER_MODE`라 데이터 범위는 늘지 않는다(김 길동 27 · 박 팀장 28 ·
+   최 대표 254건으로 확인).
+5. **에러는 `reduceErrors({ body: event.detail })` + `ShowToastEvent`(sticky)로 올렸다** —
+   record-form 에러에는 `body`가 없어 그대로 넘기면 일반 문구만 나온다. 실제 화면에서
+   record-form 배너에는 일반 문구("An error occurred…"), Toast에는 D5 트리거 문구가 함께 떠서
+   감싼 효과를 확인했다. 에러는 읽기 전에 사라지면 안 되므로 sticky, 성공은 dismissible.

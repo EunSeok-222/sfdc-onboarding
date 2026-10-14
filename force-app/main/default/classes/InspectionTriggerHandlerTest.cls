@@ -8,9 +8,10 @@
  * --------------------------------------------------------------------------------------
  *  2026.10.11   Kai        Created     최초 작성 (초안: 정상 · 불허 · 벌크 200건)
  *  2026.10.12   Kai        Updated     D6 최근 정기점검일 테스트 T-09~T-16 추가 (TestDataFactory 사용)
+ *  2026.10.14   Kai        Updated     SV 계정(runAs)으로 점검완료 저장 시 최근 정기점검일 갱신 테스트 추가
  * ======================================================================================
  *  @see         : Inspection.trigger, FranchiseInspectionDateService.cls, InspectionService.cls
- *  @note        : SV 권한(runAs) 시나리오와 InspectionService.judgeInspections는 D6에서 보강
+ *  @note        : 관리자로만 돌던 테스트가 SV의 FLS(최근 정기점검일 읽기 전용) 문제를 못 잡았다 → runAs 시나리오 추가
  * ======================================================================================*/
 @isTest
 private class InspectionTriggerHandlerTest {
@@ -494,7 +495,65 @@ private class InspectionTriggerHandlerTest {
     );
   }
 
+  // ---------------------------------------------------------------- SV 권한 (runAs)
+
+  // SV가 정기점검을 점검완료로 저장하면 성공하고, 가맹점 최근 정기점검일도 갱신된다
+  // NOTE: SV는 Account.LastRegularInspectionDate__c 편집 불가(권한 매트릭스 V1.2). 트리거가 시스템 모드로 써야 한다
+  @isTest
+  static void svCompletesRegularInspection_updatesLastDate() {
+    User sv = createSvUser();
+    Account store = getStore('TEST-A');
+    Date inspectionDate = Date.newInstance(2026, 10, 1);
+    Inspection__c ins = newInspection(
+      store,
+      TestDataFactory.STATUS_SCHEDULED,
+      REGULAR_RT_ID,
+      inspectionDate
+    );
+    ins.OwnerId = sv.Id; // DESC: SV가 자기 점검을 저장하는 상황 — 소유자라 공유 규칙과 무관하게 편집 가능
+    insert ins;
+    insert newResults(ins.Id, new List<Integer>{ 9, 9, 8, 8 }, false);
+
+    Database.SaveResult result;
+    Test.startTest();
+    System.runAs(sv) {
+      ins.Status__c = TestDataFactory.STATUS_COMPLETED;
+      result = Database.update(ins, false);
+    }
+    Test.stopTest();
+
+    Assert.isTrue(
+      result.isSuccess(),
+      'SV의 점검완료 저장은 성공해야 한다. 실제 오류: ' + result.getErrors()
+    );
+    Assert.areEqual(
+      inspectionDate,
+      getLastDate(store.Id),
+      'SV에게 편집 권한이 없는 필드여도 트리거가 최근 정기점검일을 갱신해야 한다'
+    );
+  }
+
   // ---------------------------------------------------------------- 테스트 데이터 도우미
+
+  /** 「가맹점점검 SV」 프로필 사용자. 테스트 안에서만 존재한다 */
+  private static User createSvUser() {
+    Profile svProfile = [SELECT Id FROM Profile WHERE Name = '가맹점점검 SV'];
+    String uniqueKey = String.valueOf(Crypto.getRandomInteger())
+      .replace('-', '');
+    User sv = new User(
+      ProfileId = svProfile.Id,
+      LastName = '테스트SV',
+      Alias = 'tsv',
+      Email = 'test.sv@example.com',
+      Username = 'test.sv.' + uniqueKey + '@example.com',
+      TimeZoneSidKey = 'Asia/Seoul',
+      LocaleSidKey = 'ko_KR',
+      EmailEncodingKey = 'UTF-8',
+      LanguageLocaleKey = 'ko'
+    );
+    insert sv;
+    return sv;
+  }
 
   /** TestDataFactory로 점검 1건을 만들어 insert한다 */
   private static Inspection__c createInspection(

@@ -8,6 +8,7 @@
  * --------------------------------------------------------------------------------------
  *  2026.10.11   Kai        Created     최초 작성 (뼈대)
  *  2026.10.11   Kai        Updated     최근 정기점검일 재계산 구현
+ *  2026.10.14   Kai        Updated     가맹점 update를 시스템 모드로 명시 (SV 점검완료 저장 실패 수정)
  * ======================================================================================
  *  @see         : InspectionTriggerHandler.cls
  *  @note        : 집계 대상은 정기점검(RecordType Regular) 중 점검예정이 아닌 점검
@@ -57,6 +58,8 @@ public without sharing class FranchiseInspectionDateService {
 
     // DESC: 3) 대상 가맹점 일괄 저장 — DML 1번
     // WARN: 가맹점 Duplicate Rule(수정 시 Block)이 이 update에도 적용된다. 사업자번호가 중복된 가맹점이 생기면 점검 저장이 실패함
-    update franchisesById.values();
+    // WARN: as system — 최근 정기점검일은 관리자 외 FLS 읽기 전용(권한 매트릭스 V1.2)이라 실행 사용자 권한으로 쓰면
+    //       SV의 점검완료 저장이 실패한다. 이 DML이 쓰는 값은 위에서 만든 Id · 최근 정기점검일뿐이라 범위를 이 한 줄로 좁힌다
+    update as system franchisesById.values();
   }
 }

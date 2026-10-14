@@ -8,17 +8,12 @@
  * --------------------------------------------------------------------------------------
  *  2026.10.08   Kai        Created     최초 작성
  *  2026.10.11   Kai        Updated     트리거용 메모리 판정 메서드 applyJudgements 분리
+ *  2026.10.13   Kai        Updated     판정 기준값 상수 제거 → InspectionRule__mdt(InspectionRuleSelector)에서 조회
  * ======================================================================================
- *  @see         : docs/ERD.md (R2 가맹점–점검 Lookup, 4장 Roll-Up)
- *  @note        : 판정 기준값 PASS_RATE · CORRECTION_RATE는 D6에서 Custom Metadata로 이관 예정
+ *  @see         : docs/ERD.md (R2 가맹점–점검 Lookup, 4장 Roll-Up), InspectionRuleSelector.cls
+ *  @note        : 합격선 · 시정선(BR-02)은 Custom Metadata InspectionRule__mdt.Default에서 읽는다
  * ======================================================================================*/
 public with sharing class InspectionService {
-  /** BR-02: 합격 기준 (총점 / 배점) — D6에서 Custom Metadata로 이관 예정 */
-  private static final Decimal PASS_RATE = 0.8;
-
-  /** BR-02: 시정 필요 기준 — D6에서 Custom Metadata로 이관 예정 */
-  private static final Decimal CORRECTION_RATE = 0.6;
-
   /**
    * 점검 판정을 일괄 계산해 저장한다.
    * Roll-Up 필드만 사용하므로 결과 항목을 별도 조회하지 않는다.
@@ -49,11 +44,16 @@ public with sharing class InspectionService {
    * @param inspections Roll-Up 세 필드(총점 · 배점 합계 · 필수 미흡 수)가 들어 있는 점검
    **/
   public static void applyJudgements(List<Inspection__c> inspections) {
+    if (inspections.isEmpty()) {
+      return; // NOTE: 판정 대상이 없으면 기준값도 읽지 않는다 (트리거는 대상이 없어도 이 메서드를 부른다)
+    }
+    // PERF: 기준값은 루프 밖에서 1번만 읽는다
+    InspectionRule__mdt rule = InspectionRuleSelector.getDefaultRule();
     for (Inspection__c ins : inspections) {
       if (ins.ruMaxScore__c == null || ins.ruMaxScore__c <= 0) {
         continue;
       }
-      ins.Judgement__c = decideJudgement(ins);
+      ins.Judgement__c = decideJudgement(ins, rule);
     }
   }
 
@@ -90,16 +90,20 @@ public with sharing class InspectionService {
   /**
    * 단일 점검의 판정값을 결정한다.
    * BR-03: 필수 항목 미흡이 있으면 점수와 무관하게 불합격.
+   * BR-02: 득점률이 합격선 이상이면 합격, 시정선 이상이면 시정 필요, 그 아래는 불합격.
    */
-  private static String decideJudgement(Inspection__c ins) {
+  private static String decideJudgement(
+    Inspection__c ins,
+    InspectionRule__mdt rule
+  ) {
     if (ins.ruDeficientRequiredCount__c > 0) {
       return '불합격';
     }
     Decimal rate = ins.ruTotalScore__c / ins.ruMaxScore__c;
 
-    if (rate >= PASS_RATE)
+    if (rate >= rule.PassRate__c)
       return '합격';
-    if (rate >= CORRECTION_RATE)
+    if (rate >= rule.CorrectionRate__c)
       return '시정 필요';
     return '불합격';
   }

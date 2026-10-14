@@ -22,6 +22,8 @@
             </value>
         </assignmentItems>
     </assignments>
+    <description
+  >26-10-13 시정 기한 일수를 점검 기준(InspectionRule__mdt.Default)에서 조회하도록 변경 by Kai</description>
     <environments>Default</environments>
     <formulas>
         <name>fx_DueDate</name>
@@ -33,7 +35,7 @@
         <name>fx_DueDays</name>
         <dataType>Number</dataType>
         <expression
-    >IF(TEXT({!$Record.InspectionResult__r.Category__c}) = &quot;위생&quot;, 3, 7)</expression>
+    >IF(TEXT({!$Record.InspectionResult__r.Category__c}) = &quot;위생&quot;, {!Get_Default_Inspection_Rules.SanitationDueDays__c}, {!Get_Default_Inspection_Rules.DefaultDueDays__c})</expression>
         <scale>0</scale>
     </formulas>
     <formulas>
@@ -64,11 +66,33 @@
         </value>
     </processMetadataValues>
     <processType>AutoLaunchedFlow</processType>
+    <recordLookups>
+        <name>Get_Default_Inspection_Rules</name>
+        <label>Get Default Inspection Rules</label>
+        <locationX>0</locationX>
+        <locationY>0</locationY>
+        <assignNullValuesIfNoRecordsFound
+    >false</assignNullValuesIfNoRecordsFound>
+        <connector>
+            <targetReference>Set_DueDate_Revisit</targetReference>
+        </connector>
+        <filterLogic>and</filterLogic>
+        <filters>
+            <field>DeveloperName</field>
+            <operator>EqualTo</operator>
+            <value>
+                <stringValue>Default</stringValue>
+            </value>
+        </filters>
+        <getFirstRecordOnly>true</getFirstRecordOnly>
+        <object>InspectionRule__mdt</object>
+        <storeOutputAutomatically>true</storeOutputAutomatically>
+    </recordLookups>
     <start>
         <locationX>0</locationX>
         <locationY>0</locationY>
         <connector>
-            <targetReference>Set_DueDate_Revisit</targetReference>
+            <targetReference>Get_Default_Inspection_Rules</targetReference>
         </connector>
         <object>CorrectiveAction__c</object>
         <recordTriggerType>Create</recordTriggerType>

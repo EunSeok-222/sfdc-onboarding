@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<CustomMetadata
+  xmlns="http://soap.sforce.com/2006/04/metadata"
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xmlns:xsd="http://www.w3.org/2001/XMLSchema"
+>
+    <label>기본</label>
+    <protected>false</protected>
+    <values>
+        <field>PassRate__c</field>
+        <value xsi:type="xsd:double">0.8</value>
+    </values>
+    <values>
+        <field>CorrectionRate__c</field>
+        <value xsi:type="xsd:double">0.6</value>
+    </values>
+    <values>
+        <field>SanitationDueDays__c</field>
+        <value xsi:type="xsd:double">3</value>
+    </values>
+    <values>
+        <field>DefaultDueDays__c</field>
+        <value xsi:type="xsd:double">7</value>
+    </values>
+</CustomMetadata>

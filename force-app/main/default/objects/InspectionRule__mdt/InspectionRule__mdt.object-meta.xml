@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<CustomObject xmlns="http://soap.sforce.com/2006/04/metadata">
+    <description
+  >26-10-13 점검 판정 기준값(BR-02)과 시정 기한 일수(BR-05)를 코드 밖으로 분리 by Kai</description>
+    <label>점검 기준</label>
+    <pluralLabel>점검 기준</pluralLabel>
+    <visibility>Public</visibility>
+</CustomObject>

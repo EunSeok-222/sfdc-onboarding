@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<ValidationRule xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>RateAndDaysRange</fullName>
+    <active>true</active>
+    <description
+  >26-10-13 기준값 오입력 차단 — 비율은 0~1, 시정선은 합격선 이하, 기한은 1일 이상 by Kai</description>
+    <errorConditionFormula>OR(
+  PassRate__c &lt; 0,
+  PassRate__c &gt; 1,
+  CorrectionRate__c &lt; 0,
+  CorrectionRate__c &gt; PassRate__c,
+  SanitationDueDays__c &lt; 1,
+  DefaultDueDays__c &lt; 1
+)</errorConditionFormula>
+    <errorMessage
+  >비율은 0~1(예: 0.80), 시정선은 합격선 이하, 기한 일수는 1 이상이어야 합니다.</errorMessage>
+</ValidationRule>

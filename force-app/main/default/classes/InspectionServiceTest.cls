@@ -7,10 +7,12 @@
  * --------------------------------------------------------------------------------------
  *  2026.10.12   Kai        Created     최초 작성 — applyJudgements 경계값
  *  2026.10.12   Kai        Updated     메서드명 축약 (Apex 식별자는 ASCII만 허용 — 설명은 주석으로)
+ *  2026.10.14   Kai        Updated     판정 필드 편집 FLS 테스트 추가 (SV runAs · stripInaccessible · USER_MODE)
  * ======================================================================================
  *  @see         : InspectionService.cls, docs/d6-test-scenarios.md
  *  @note        : applyJudgements는 SOQL · DML이 없어 레코드를 insert하지 않고 검증한다.
  *                 Roll-Up은 생성자로 대입 불가. JSON 역직렬화로 값을 주입한다
+ *                 판정 FLS 테스트(judgementFls_*)만 SV 권한을 재현하려고 실제 레코드를 insert한다
  * ======================================================================================*/
 @IsTest
 private class InspectionServiceTest {
@@ -124,5 +126,131 @@ private class InspectionServiceTest {
       ins.Judgement__c,
       '배점이 null이어도 예외 없이 건너뛰어야 함'
     );
+  }
+
+  // ---------------------------------------------------------------- 판정 필드 편집 FLS (권한 축소 사용자)
+  // NOTE: 권한 매트릭스 V1.2 — 판정(Judgement__c)은 관리자만 편집, SV · 권역팀장 · 조회전용은 읽기 전용.
+  //       InspectionService가 판정을 쓰는 update는 시스템 모드여야 SV의 점검완료 저장이 실패하지 않는다. 그 근거를 테스트로 남긴다
+  // WARN: 점검완료 점검은 상태가 점검완료로 바뀌거나 Roll-Up 점수가 바뀌는 update에서 트리거
+  //       (InspectionTriggerHandler.applyJudgementsOnCompletion)가 판정을 다시 계산해 덮어쓴다.
+  //       판정 저장 자체만 보려고 대상 점검은 점검예정으로 만든다 — 재계산이 끼어들면 "저장됐다/막혔다"를 잘못 읽는다
+
+  private static final String JUDGEMENT_PASS = '합격';
+
+  // 증명: 플랫폼이 SV에게 판정을 '수정 불가 필드'로 본다 (예외 없이 결정적으로 확인)
+  @IsTest
+  static void judgementFls_svStripInaccessible_removesJudgement() {
+    User sv = TestDataFactory.createSvUser('판정FLS테스트SV', true);
+    Id inspectionId = insertScheduledInspection(sv.Id);
+
+    SObjectAccessDecision decision;
+    Test.startTest();
+    System.runAs(sv) {
+      Inspection__c target = [
+        SELECT Id, Judgement__c
+        FROM Inspection__c
+        WHERE Id = :inspectionId
+      ];
+      target.Judgement__c = JUDGEMENT_PASS;
+      decision = Security.stripInaccessible(
+        AccessType.UPDATABLE,
+        new List<Inspection__c>{ target }
+      );
+    }
+    Test.stopTest();
+
+    Map<String, Set<String>> removedFieldsByObject = decision.getRemovedFields();
+    Assert.isTrue(
+      removedFieldsByObject.containsKey('Inspection__c') &&
+      removedFieldsByObject.get('Inspection__c').contains('Judgement__c'),
+      'SV 기준 수정 불가 필드에 판정이 있어야 한다. 실제: ' +
+      removedFieldsByObject
+    );
+  }
+
+  // 증명: SV 권한(USER_MODE)으로 판정을 저장하면 막히고, DB 값도 그대로다
+  @IsTest
+  static void judgementFls_svUserModeUpdate_isBlocked() {
+    User sv = TestDataFactory.createSvUser('판정FLS테스트SV', true);
+    Id inspectionId = insertScheduledInspection(sv.Id);
+
+    // NOTE: Assert.fail을 try 안에 두면 catch(Exception)가 그 실패까지 삼켜 테스트가 거짓 통과한다 → 결과를 변수로 받고 밖에서 검증
+    Boolean saved = false;
+    DmlException caught;
+    Test.startTest();
+    System.runAs(sv) {
+      Inspection__c target = new Inspection__c(
+        Id = inspectionId,
+        Judgement__c = JUDGEMENT_PASS
+      );
+      try {
+        Database.update(target, AccessLevel.USER_MODE);
+        saved = true;
+      } catch (DmlException e) {
+        // NOTE: 2026.10.14 디버그 로그로 확인한 실제 예외 — System.DmlException,
+        //       "Operation failed due to fields being inaccessible on Sobject Inspection__c ..." · getDmlFieldNames(0) = (Judgement__c)
+        caught = e;
+      }
+    }
+    Test.stopTest();
+
+    Assert.isFalse(saved, 'SV 권한으로 판정이 저장되면 안 된다');
+    Assert.isNotNull(caught, '저장이 막혔다면 DmlException이 있어야 한다');
+    Assert.isTrue(
+      caught.getMessage().contains('fields being inaccessible'),
+      '필드 권한 때문에 막혀야 한다(다른 이유가 아니라). 실제: ' +
+      caught.getMessage()
+    );
+    Assert.isTrue(
+      caught.getDmlFieldNames(0).contains('Judgement__c'),
+      '막힌 필드가 판정이어야 한다. 실제: ' + caught.getDmlFieldNames(0)
+    );
+    Assert.isNull(
+      [SELECT Judgement__c FROM Inspection__c WHERE Id = :inspectionId]
+      .Judgement__c,
+      '막힌 저장은 DB 판정 값을 바꾸면 안 된다'
+    );
+  }
+
+  // 증명(대조군): 같은 점검 · 같은 저장문을 판정 편집 권한이 있는 관리자가 실행하면 성공한다
+  //               → 2번 테스트를 막은 것은 코드가 아니라 SV의 필드 권한이다
+  @IsTest
+  static void judgementFls_adminSameUpdate_succeeds() {
+    User sv = TestDataFactory.createSvUser('판정FLS테스트SV', true);
+    Id inspectionId = insertScheduledInspection(sv.Id);
+
+    Test.startTest();
+    Database.SaveResult result = Database.update(
+      new Inspection__c(Id = inspectionId, Judgement__c = JUDGEMENT_PASS),
+      false,
+      AccessLevel.USER_MODE
+    );
+    Test.stopTest();
+
+    Assert.isTrue(
+      result.isSuccess(),
+      '관리자는 같은 저장이 성공해야 한다. 실제 오류: ' + result.getErrors()
+    );
+    Assert.areEqual(
+      JUDGEMENT_PASS,
+      [SELECT Judgement__c FROM Inspection__c WHERE Id = :inspectionId]
+      .Judgement__c,
+      '관리자 저장 후 판정이 반영되어야 한다'
+    );
+  }
+
+  /** SV 소유 점검예정 점검 1건 (판정 재계산이 일어나지 않는 상태) */
+  private static Id insertScheduledInspection(Id ownerId) {
+    Inspection__c ins = TestDataFactory.createInspections(
+      TestDataFactory.createFranchises(1, true),
+      1,
+      TestDataFactory.STATUS_SCHEDULED,
+      TestDataFactory.RT_REGULAR,
+      Date.today(),
+      false
+    )[0];
+    ins.OwnerId = ownerId;
+    insert ins;
+    return ins.Id;
   }
 }

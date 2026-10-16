@@ -8,6 +8,7 @@
  * --------------------------------------------------------------------------------------
  *  2026.10.13   Kai        Created     최초 작성
  *  2026.10.13   Kai        Updated     statuses(List) 변경 반영 — 상태 2개 · 빈 목록 케이스 추가
+ *  2026.10.14   Kai        Updated     SV 권한(runAs) 레코드 층 테스트 추가 (BR-10 담당 점검만)
  * ======================================================================================*/
 @IsTest
 private class InspectionListControllerTest {
@@ -304,5 +305,74 @@ private class InspectionListControllerTest {
       )
     );
     insert inspections;
+  }
+
+  // ---------------------------------------------------------------- 권한 축소 사용자 (BR-10 레코드 층)
+
+  // 증명: SV가 목록을 열면 with sharing + USER_MODE가 SV 소유 점검만 남긴다.
+  //       타 SV · 관리자 소유 점검을 섞어 두고, 건수와 소유자가 정확히 SV 것뿐인지 본다
+  // NOTE: @TestSetup을 쓰지 않는다 — 이 클래스의 기존 테스트가 전체 건수(200건 등)를 Assert하므로
+  //       공용 데이터를 깔면 그 테스트들이 깨진다. 이 테스트에 필요한 데이터는 여기서만 만든다
+  @IsTest
+  static void search_asSv_returnsOnlyOwnInspections() {
+    User sv = TestDataFactory.createSvUser('목록테스트SV', false);
+    User otherSv = TestDataFactory.createSvUser('목록테스트타SV', false);
+    insert new List<User>{ sv, otherSv };
+
+    // DESC: 가맹점 3곳 × 2건 = 6건 — SV 2건 · 타 SV 2건 · 관리자(실행 사용자) 2건
+    List<Inspection__c> inspections = TestDataFactory.createInspections(
+      TestDataFactory.createFranchises(3, true),
+      2,
+      TestDataFactory.STATUS_SCHEDULED,
+      TestDataFactory.RT_REGULAR,
+      Date.today(),
+      false
+    );
+    Integer svOwnedCount = 0;
+    for (Integer i = 0; i < inspections.size(); i++) {
+      if (i < 2) {
+        inspections[i].OwnerId = sv.Id;
+        svOwnedCount++;
+      } else if (i < 4) {
+        inspections[i].OwnerId = otherSv.Id;
+      }
+    }
+    insert inspections;
+    Assert.areEqual(
+      6,
+      [SELECT COUNT() FROM Inspection__c],
+      '전제: 소유자가 섞인 점검 6건이 있어야 한다'
+    );
+
+    InspectionListController.InspectionPageWrapper page;
+    Test.startTest();
+    System.runAs(sv) {
+      page = InspectionListController.search(null);
+    }
+    Test.stopTest();
+
+    Assert.areEqual(
+      svOwnedCount,
+      page.totalCount,
+      'SV에게는 자기 소유 점검 건수만 잡혀야 한다'
+    );
+    Assert.areEqual(
+      svOwnedCount,
+      page.records.size(),
+      'SV에게 반환된 레코드도 자기 소유 건수와 같아야 한다'
+    );
+    // NOTE: 컨트롤러의 SELECT에는 OwnerId가 없다(화면에 안 쓰는 필드는 가져오지 않는다). 반환된 Id로 소유자를 다시 조회한다
+    Set<Id> returnedIds = new Map<Id, Inspection__c>(page.records).keySet();
+    for (Inspection__c ins : [
+      SELECT OwnerId
+      FROM Inspection__c
+      WHERE Id IN :returnedIds
+    ]) {
+      Assert.areEqual(
+        sv.Id,
+        ins.OwnerId,
+        'SV 목록에 타 사용자 소유 점검이 섞이면 안 된다'
+      );
+    }
   }
 }

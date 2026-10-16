@@ -9,6 +9,7 @@
  *  2026.10.11   Kai        Created     최초 작성 (초안: 정상 · 불허 · 벌크 200건)
  *  2026.10.12   Kai        Updated     D6 최근 정기점검일 테스트 T-09~T-16 추가 (TestDataFactory 사용)
  *  2026.10.14   Kai        Updated     SV 계정(runAs)으로 점검완료 저장 시 최근 정기점검일 갱신 테스트 추가
+ *  2026.10.14   Kai        Updated     createSvUser를 TestDataFactory로 이동 (CorrectiveActionControllerTest와 공유)
  * ======================================================================================
  *  @see         : Inspection.trigger, FranchiseInspectionDateService.cls, InspectionService.cls
  *  @note        : 관리자로만 돌던 테스트가 SV의 FLS(최근 정기점검일 읽기 전용) 문제를 못 잡았다 → runAs 시나리오 추가
@@ -501,7 +502,7 @@ private class InspectionTriggerHandlerTest {
   // NOTE: SV는 Account.LastRegularInspectionDate__c 편집 불가(권한 매트릭스 V1.2). 트리거가 시스템 모드로 써야 한다
   @isTest
   static void svCompletesRegularInspection_updatesLastDate() {
-    User sv = createSvUser();
+    User sv = TestDataFactory.createSvUser('테스트SV', true);
     Account store = getStore('TEST-A');
     Date inspectionDate = Date.newInstance(2026, 10, 1);
     Inspection__c ins = newInspection(
@@ -534,26 +535,6 @@ private class InspectionTriggerHandlerTest {
   }
 
   // ---------------------------------------------------------------- 테스트 데이터 도우미
-
-  /** 「가맹점점검 SV」 프로필 사용자. 테스트 안에서만 존재한다 */
-  private static User createSvUser() {
-    Profile svProfile = [SELECT Id FROM Profile WHERE Name = '가맹점점검 SV'];
-    String uniqueKey = String.valueOf(Crypto.getRandomInteger())
-      .replace('-', '');
-    User sv = new User(
-      ProfileId = svProfile.Id,
-      LastName = '테스트SV',
-      Alias = 'tsv',
-      Email = 'test.sv@example.com',
-      Username = 'test.sv.' + uniqueKey + '@example.com',
-      TimeZoneSidKey = 'Asia/Seoul',
-      LocaleSidKey = 'ko_KR',
-      EmailEncodingKey = 'UTF-8',
-      LanguageLocaleKey = 'ko'
-    );
-    insert sv;
-    return sv;
-  }
 
   /** TestDataFactory로 점검 1건을 만들어 insert한다 */
   private static Inspection__c createInspection(

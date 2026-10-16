@@ -10,6 +10,7 @@
  *  2026.10.12   Kai        Updated     가맹점 매장코드·사업자번호, 점검번호 유니크 세팅 추가
  *  2026.10.12   Kai        Updated     점검번호를 호출 간에도 이어지게 변경 (한 테스트 내 중복 방지)
  *  2026.10.12   Kai        Updated     createCorrectiveActions 추가 (D6 기한 초과 배치 테스트용)
+ *  2026.10.14   Kai        Updated     createSvUser 이동 (InspectionTriggerHandlerTest → 공유, D8 runAs 테스트용)
  * ======================================================================================
  *  @note        : @IsTest이므로 커버리지 분모에서 제외된다. doInsert = false면 insert 전 상태로
  *                 반환해 호출자가 필드를 더 손볼 수 있다 (벌크 테스트의 DML 1번 유지 목적)
@@ -23,8 +24,46 @@ public class TestDataFactory {
   public static final String STATUS_SCHEDULED = '점검예정';
   public static final String STATUS_COMPLETED = '점검완료';
 
+  /** 권한 매트릭스 V1.2의 SV 프로필 이름 */
+  public static final String PROFILE_SV = '가맹점점검 SV';
+
   // NOTE: InspectionNo__c는 Unique — 한 테스트에서 createInspections를 여러 번 불러도 겹치지 않게 호출 간 번호를 이어 간다
   private static Integer inspectionSeq = 0;
+
+  // PERF: 사용자를 여러 명 만들어도 프로필 SOQL은 트랜잭션당 1번만 실행한다
+  private static Id svProfileId;
+
+  /**
+   * @description : 「가맹점점검 SV」 프로필 사용자를 생성한다. 테스트 안에서만 존재해 라이선스를 쓰지 않는다.
+   * @author      : 이은석(Kai) | 2026.10.14
+   * @note        : 역할(UserRoleId)을 비워 둔다 — 역할이 없는 사용자는 업무 데이터와 같은 트랜잭션에서
+   *                insert해도 Mixed DML 오류가 나지 않는다. 사용자명은 org 전체에서 유일해야 하므로 난수를 붙인다
+   * @param lastName  성 (테스트에서 사용자를 다시 찾을 때 키로 쓴다)
+   * @param doInsert  true면 insert까지 수행 (DML 1번)
+   * @return User
+   **/
+  public static User createSvUser(String lastName, Boolean doInsert) {
+    if (svProfileId == null) {
+      svProfileId = [SELECT Id FROM Profile WHERE Name = :PROFILE_SV].Id;
+    }
+    String uniqueKey = String.valueOf(Crypto.getRandomInteger())
+      .replace('-', '');
+    User sv = new User(
+      ProfileId = svProfileId,
+      LastName = lastName,
+      Alias = 'tsv',
+      Email = 'test.sv@example.com',
+      Username = 'test.sv.' + uniqueKey + '@example.com',
+      TimeZoneSidKey = 'Asia/Seoul',
+      LocaleSidKey = 'ko_KR',
+      EmailEncodingKey = 'UTF-8',
+      LanguageLocaleKey = 'ko'
+    );
+    if (doInsert) {
+      insert sv;
+    }
+    return sv;
+  }
 
   // DESC: describe 기반이라 SOQL을 쓰지 않는다
   public static Id inspectionRecordTypeId(String developerName) {

@@ -1,0 +1,446 @@
+/* ======================================================================================
+ * @description : 매장 이력 타임라인 스타일 (헤더 · 필터 칩 · 월별 그룹 · 레일 · 카드 · 점수 바)
+ * @layer       : LWC
+ * @author      : 이은석(Kai)
+ * ======================================================================================
+ *  Date         Modifier   Status      Description
+ * --------------------------------------------------------------------------------------
+ *  2026.10.14   Kai        Created     최초 작성 (확정 시안 docs/design/sc03-franchise-history-mockup.html 값 그대로)
+ *  2026.10.14   Kai        Updated     중립(회색) 배지 추가 — 페널티 '반려'
+ * ======================================================================================
+ *  @note        : 판정 3색은 inspectionJudgementPanel.css의 --wsds-judgement-* 와 같은 값이다(shadow DOM이라 그 변수를
+ *                 직접 쓸 수 없어 같은 값으로 다시 정의). 간격 · 크기 · 모서리는 --wdls-g-* 토큰 + var() 기본값
+ * ======================================================================================*/
+:host {
+  /* DESC: 색은 여기서만 정의하고 아래 규칙은 이 변수만 쓴다 */
+  --wsds-history-text: #181818;
+  --wsds-history-text-weak: #5c5c5c;
+  --wsds-history-line: #e5e5e5;
+  --wsds-history-dot: #c9c9c9;
+  --wsds-history-surface: #ffffff;
+  --wsds-history-brand: #0176d3;
+  --wsds-history-brand-dark: #014486;
+
+  /* DESC: 유형 색 (시안 TYPE 표) */
+  --wsds-history-inspection: #0176d3;
+  --wsds-history-inspection-bg: #eef4ff;
+  --wsds-history-action: #0b6b66;
+  --wsds-history-action-bg: #e6f6f5;
+  --wsds-history-penalty: #5a1ba9;
+  --wsds-history-penalty-bg: #f2ebfd;
+
+  /* DESC: 배지 색 (시안 TONE 표) — 판정 3색은 --wsds-judgement-pass · correction · fail과 같은 값 */
+  --wsds-history-pass: #2e844a;
+  --wsds-history-correction: #fe9339;
+  --wsds-history-fail: #ba0517;
+  --wsds-history-pending-bg: #eef4ff;
+  --wsds-history-pending-fg: #014486;
+  --wsds-history-done-bg: #ebf7e6;
+  --wsds-history-done-fg: #22683e;
+  /* NOTE: 중립(회색) — 판정 패널 --wsds-judgement-none과 같은 값 */
+  --wsds-history-none: #747474;
+}
+
+.wsds-history {
+  background: var(--wsds-history-surface);
+  border: var(--wdls-g-border-width-default, 1px) solid var(--wsds-history-line);
+  border-radius: var(--wdls-g-border-radius-md, 8px);
+  overflow: hidden;
+  color: var(--wsds-history-text);
+}
+
+/* ---------------------------------------------------------------- 헤더 */
+
+.wsds-history__header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: var(--wdls-g-spacing-md, 16px) 20px 12px;
+}
+
+.wsds-history__header-icon {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 6px;
+  background: var(--wsds-history-brand);
+  color: #ffffff;
+}
+
+.wsds-history__header-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.wsds-history__title {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 1.3;
+}
+
+.wsds-history__subtitle {
+  margin: 0;
+  font-size: 13px;
+  color: var(--wsds-history-text-weak);
+}
+
+/* ---------------------------------------------------------------- 필터 칩 */
+
+.wsds-history__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--wdls-g-spacing-sm, 8px);
+  padding: var(--wdls-g-spacing-xs, 4px) 20px var(--wdls-g-spacing-sm, 8px);
+}
+
+.wsds-history__chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 36px;
+  padding: 0 14px;
+  border: var(--wdls-g-border-width-default, 1px) solid var(--wsds-history-dot);
+  border-radius: 18px;
+  background: var(--wsds-history-surface);
+  color: var(--wsds-history-brand);
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.wsds-history__chip--selected {
+  border-color: var(--wsds-history-brand);
+  background: var(--wsds-history-brand);
+  color: #ffffff;
+}
+
+.wsds-history__chip:focus-visible {
+  outline: 2px solid var(--wsds-history-brand);
+  outline-offset: 2px;
+}
+
+.wsds-history__chip-count {
+  font-weight: 500;
+  opacity: 0.85;
+}
+
+/* ---------------------------------------------------------------- 본문 · 월별 그룹 */
+
+.wsds-history__body {
+  display: flex;
+  flex-direction: column;
+  padding: var(--wdls-g-spacing-xs, 4px) 20px var(--wdls-g-spacing-sm, 8px);
+}
+
+.wsds-history__spinner {
+  position: relative;
+  min-height: 96px;
+}
+
+.wsds-history__group {
+  display: flex;
+  flex-direction: column;
+}
+
+.wsds-history__group-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 0 10px;
+}
+
+.wsds-history__group-label {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--wsds-history-text-weak);
+  white-space: nowrap;
+}
+
+.wsds-history__group-line {
+  flex: 1;
+  height: 1px;
+  background: var(--wsds-history-line);
+}
+
+.wsds-history__event {
+  display: flex;
+  align-items: stretch;
+  gap: 14px;
+}
+
+/* ---------------------------------------------------------------- 날짜 열 */
+
+.wsds-history__date {
+  flex-shrink: 0;
+  width: 52px;
+  padding-top: 6px;
+  text-align: right;
+}
+
+.wsds-history__date-day {
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.wsds-history__date-dow {
+  font-size: var(--wdls-g-font-size-xs, 12px);
+  color: var(--wsds-history-text-weak);
+}
+
+/* ---------------------------------------------------------------- 세로 레일 · 아이콘 원 */
+
+.wsds-history__rail {
+  position: relative;
+  display: flex;
+  flex-shrink: 0;
+  justify-content: center;
+  width: 34px;
+}
+
+.wsds-history__rail-line {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: var(--wdls-g-spacing-md, 16px);
+  width: 2px;
+  background: var(--wsds-history-line);
+}
+
+.wsds-history__icon {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  width: 34px;
+  height: 34px;
+  margin-top: 2px;
+  border: 2px solid currentColor;
+  border-radius: var(--wdls-g-border-radius-full, 9999px);
+}
+
+.wsds-history__icon--inspection {
+  background: var(--wsds-history-inspection-bg);
+  color: var(--wsds-history-inspection);
+}
+
+.wsds-history__icon--action {
+  background: var(--wsds-history-action-bg);
+  color: var(--wsds-history-action);
+}
+
+.wsds-history__icon--penalty {
+  background: var(--wsds-history-penalty-bg);
+  color: var(--wsds-history-penalty);
+}
+
+/* ---------------------------------------------------------------- 카드 */
+
+.wsds-history__card {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+  margin-bottom: 12px;
+  padding: 12px var(--wdls-g-spacing-md, 16px);
+  border: var(--wdls-g-border-width-default, 1px) solid var(--wsds-history-line);
+  border-radius: var(--wdls-g-border-radius-md, 8px);
+  background: var(--wsds-history-surface);
+}
+
+.wsds-history__card-top,
+.wsds-history__card-title {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--wdls-g-spacing-sm, 8px);
+}
+
+.wsds-history__type {
+  font-size: var(--wdls-g-font-size-xs, 12px);
+  font-weight: 700;
+}
+
+.wsds-history__type--inspection {
+  color: var(--wsds-history-inspection);
+}
+
+.wsds-history__type--action {
+  color: var(--wsds-history-action);
+}
+
+.wsds-history__type--penalty {
+  color: var(--wsds-history-penalty);
+}
+
+.wsds-history__dot {
+  color: var(--wsds-history-dot);
+}
+
+.wsds-history__record-no {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--wsds-history-brand);
+  text-decoration: none;
+}
+
+.wsds-history__record-no:hover {
+  color: var(--wsds-history-brand-dark);
+  text-decoration: underline;
+}
+
+.wsds-history__spacer {
+  flex: 1;
+}
+
+.wsds-history__badge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 22px;
+  padding: 0 10px;
+  border-radius: 11px;
+  font-size: var(--wdls-g-font-size-xs, 12px);
+  font-weight: 700;
+}
+
+.wsds-history__badge--pass {
+  background: var(--wsds-history-pass);
+  color: #ffffff;
+}
+
+/* WARN: 주황 바탕에 흰 글씨는 대비가 낮아(약 2:1) 시정 필요 배지만 어두운 글씨 — 판정 패널과 같은 이유 */
+.wsds-history__badge--correction {
+  background: var(--wsds-history-correction);
+  color: var(--wsds-history-text);
+}
+
+.wsds-history__badge--fail {
+  background: var(--wsds-history-fail);
+  color: #ffffff;
+}
+
+.wsds-history__badge--pending {
+  background: var(--wsds-history-pending-bg);
+  color: var(--wsds-history-pending-fg);
+}
+
+.wsds-history__badge--done {
+  background: var(--wsds-history-done-bg);
+  color: var(--wsds-history-done-fg);
+}
+
+/* NOTE: 흰 글씨 대비 약 4.7:1 — 작은 글씨 기준(4.5:1)을 넘는다 */
+.wsds-history__badge--none {
+  background: var(--wsds-history-none);
+  color: #ffffff;
+}
+
+.wsds-history__title-text {
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.wsds-history__tag {
+  display: inline-flex;
+  align-items: center;
+  min-height: 20px;
+  padding: 0 6px;
+  border: var(--wdls-g-border-width-default, 1px) solid var(--wsds-history-fail);
+  border-radius: var(--wdls-g-border-radius-sm, 4px);
+  color: var(--wsds-history-fail);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+/* ---------------------------------------------------------------- 점수 바 · 보조 정보 */
+
+.wsds-history__score {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.wsds-history__bar {
+  position: relative;
+  height: 6px;
+  border-radius: var(--wdls-g-border-radius-full, 9999px);
+  background: var(--wsds-history-line);
+}
+
+.wsds-history__fill {
+  height: 100%;
+  border-radius: var(--wdls-g-border-radius-full, 9999px);
+}
+
+.wsds-history__fill--pass {
+  background: var(--wsds-history-pass);
+}
+
+.wsds-history__fill--correction {
+  background: var(--wsds-history-correction);
+}
+
+.wsds-history__fill--fail {
+  background: var(--wsds-history-fail);
+}
+
+.wsds-history__fill--pending {
+  background: var(--wsds-history-pending-fg);
+}
+
+/* DESC: 합격선 세로선 — 바보다 위아래로 조금 길게 */
+.wsds-history__marker {
+  position: absolute;
+  top: -3px;
+  bottom: -3px;
+  width: 2px;
+  background: var(--wsds-history-text);
+}
+
+.wsds-history__meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+  color: var(--wsds-history-text-weak);
+}
+
+.wsds-history__strong {
+  color: var(--wsds-history-text);
+}
+
+.wsds-history__warn {
+  font-weight: 700;
+  color: var(--wsds-history-fail);
+}
+
+.wsds-history__empty {
+  margin: 0;
+  padding: var(--wdls-g-spacing-lg, 24px) 0;
+  font-size: 13px;
+  text-align: center;
+  color: var(--wsds-history-text-weak);
+}
+
+/* ---------------------------------------------------------------- 하단 */
+
+.wsds-history__footer {
+  padding: 12px 20px;
+  border-top: var(--wdls-g-border-width-default, 1px) solid
+    var(--wsds-history-line);
+}
+
+.wsds-history__footer-text {
+  font-size: 13px;
+  color: var(--wsds-history-text-weak);
+}

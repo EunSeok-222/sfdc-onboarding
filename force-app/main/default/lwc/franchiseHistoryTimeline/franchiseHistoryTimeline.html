@@ -1,0 +1,197 @@
+<template>
+  <!-- DESC: 확정 시안(docs/design/sc03-franchise-history-mockup.html) 구조 그대로 — 헤더 · 필터 칩 · 월별 그룹 · 하단 건수 -->
+  <article class="wsds-history">
+    <header class="wsds-history__header">
+      <div class="wsds-history__header-icon">
+        <svg
+          width="20"
+          height="20"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          aria-hidden="true"
+        >
+          <path d="M3 12a9 9 0 1 0 3-6.7L3 8"></path>
+          <path d="M3 3v5h5"></path>
+          <path d="M12 7v5l4 2"></path>
+        </svg>
+      </div>
+      <div class="wsds-history__header-text">
+        <h2 class="wsds-history__title">매장 이력</h2>
+        <p class="wsds-history__subtitle">{headerSubtitle}</p>
+      </div>
+    </header>
+
+    <div class="wsds-history__chips" role="group" aria-label="유형 필터">
+      <template for:each={chips} for:item="chip">
+        <button
+          key={chip.value}
+          type="button"
+          class={chip.className}
+          aria-pressed={chip.pressed}
+          data-value={chip.value}
+          onclick={handleChipClick}
+        >
+          {chip.label}<span class="wsds-history__chip-count">{chip.count}</span>
+        </button>
+      </template>
+    </div>
+
+    <div class="wsds-history__body">
+      <template lwc:if={isLoading}>
+        <div class="wsds-history__spinner">
+          <lightning-spinner
+            alternative-text="매장 이력을 불러오는 중"
+            size="small"
+          ></lightning-spinner>
+        </div>
+      </template>
+      <template lwc:elseif={hasVisibleEvents}>
+        <template for:each={groups} for:item="group">
+          <section
+            key={group.key}
+            class="wsds-history__group"
+            aria-label={group.label}
+          >
+            <div class="wsds-history__group-header">
+              <span class="wsds-history__group-label">{group.label}</span>
+              <span class="wsds-history__group-line"></span>
+            </div>
+            <template for:each={group.events} for:item="ev">
+              <div key={ev.recordId} class="wsds-history__event">
+                <div class="wsds-history__date">
+                  <div class="wsds-history__date-day">{ev.dateLabel}</div>
+                  <div class="wsds-history__date-dow">{ev.dowLabel}</div>
+                </div>
+
+                <!-- DESC: 세로 레일 + 유형 아이콘 원 -->
+                <div class="wsds-history__rail">
+                  <div class="wsds-history__rail-line"></div>
+                  <div class={ev.iconClass}>
+                    <template lwc:if={ev.isInspection}>
+                      <svg
+                        width="16"
+                        height="16"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="2.2"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        aria-hidden="true"
+                      >
+                        <rect x="8" y="2" width="8" height="4" rx="1"></rect>
+                        <path
+                          d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"
+                        ></path>
+                        <path d="m9 14 2 2 4-4"></path>
+                      </svg>
+                    </template>
+                    <template lwc:if={ev.isAction}>
+                      <svg
+                        width="16"
+                        height="16"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="2.2"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        aria-hidden="true"
+                      >
+                        <path
+                          d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94z"
+                        ></path>
+                      </svg>
+                    </template>
+                    <template lwc:if={ev.isPenalty}>
+                      <svg
+                        width="16"
+                        height="16"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="2.2"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        aria-hidden="true"
+                      >
+                        <path d="M5 22V3"></path>
+                        <path d="M5 4h12l-2.5 4.5L17 13H5"></path>
+                      </svg>
+                    </template>
+                  </div>
+                </div>
+
+                <div class="wsds-history__card">
+                  <div class="wsds-history__card-top">
+                    <span class={ev.typeClass}>{ev.typeLabel}</span>
+                    <span class="wsds-history__dot" aria-hidden="true">·</span>
+                    <a
+                      class="wsds-history__record-no"
+                      href={ev.url}
+                      data-id={ev.recordId}
+                      onclick={handleRecordClick}
+                      >{ev.recordNo}</a
+                    >
+                    <span class="wsds-history__spacer"></span>
+                    <span class={ev.badgeClass}>{ev.status}</span>
+                  </div>
+                  <div class="wsds-history__card-title">
+                    <span class="wsds-history__title-text">{ev.title}</span>
+                    <template lwc:if={ev.isRequired}>
+                      <span class="wsds-history__tag">필수 위생</span>
+                    </template>
+                  </div>
+
+                  <template lwc:if={ev.hasScore}>
+                    <div class="wsds-history__score">
+                      <div class="wsds-history__bar">
+                        <div class={ev.fillClass} style={ev.fillStyle}></div>
+                        <!-- NOTE: 합격선 마커 — 위치는 Apex가 준 InspectionRule__mdt 합격선 -->
+                        <div
+                          class="wsds-history__marker"
+                          style={ev.markerStyle}
+                        ></div>
+                      </div>
+                      <div class="wsds-history__meta">
+                        <span
+                          ><b class="wsds-history__strong">{ev.score}</b> /
+                          {ev.maxScore}점 · 달성률 {ev.percent}%</span
+                        >
+                        <template lwc:if={ev.hasRequiredDeficient}>
+                          <span class="wsds-history__warn"
+                            >필수 항목 미흡 {ev.requiredDeficientCount}건</span
+                          >
+                        </template>
+                      </div>
+                    </div>
+                  </template>
+
+                  <template lwc:if={ev.hasDetail}>
+                    <div class="wsds-history__meta">
+                      <span>{ev.detail}</span>
+                      <template lwc:if={ev.hasWarn}>
+                        <span class="wsds-history__warn">{ev.warn}</span>
+                      </template>
+                    </div>
+                  </template>
+                </div>
+              </div>
+            </template>
+          </section>
+        </template>
+      </template>
+      <template lwc:else>
+        <p class="wsds-history__empty">최근 12개월 이력이 없습니다.</p>
+      </template>
+    </div>
+
+    <footer class="wsds-history__footer">
+      <span class="wsds-history__footer-text">{footerLabel}</span>
+    </footer>
+  </article>
+</template>

@@ -1,0 +1,546 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <title>매장 이력 타임라인</title>
+    <script src="./support.js"></script>
+  </head>
+  <body>
+    <x-dc>
+      <helmet>
+        <link
+          rel="stylesheet"
+          href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&amp;display=swap"
+        />
+        <style>
+          body {
+            margin: 0;
+          }
+          a {
+            color: #0176d3;
+            text-decoration: none;
+          }
+          a:hover {
+            color: #014486;
+            text-decoration: underline;
+          }
+          button {
+            font-family: inherit;
+          }
+          button:focus-visible {
+            outline: 2px solid #0176d3;
+            outline-offset: 2px;
+          }
+        </style>
+      </helmet>
+      <div
+        style="
+          width: 808px;
+          min-height: 1240px;
+          box-sizing: border-box;
+          padding: 24px;
+          background: #f3f3f3;
+          font-family:
+            &quot;Noto Sans KR&quot;, &quot;Segoe UI&quot;, sans-serif;
+          color: #181818;
+        "
+      >
+        <div
+          style="
+            background: #ffffff;
+            border: 1px solid #e5e5e5;
+            border-radius: 8px;
+            overflow: hidden;
+          "
+        >
+          <div
+            style="
+              display: flex;
+              align-items: center;
+              gap: 12px;
+              padding: 16px 20px 12px;
+            "
+          >
+            <div
+              style="
+                width: 36px;
+                height: 36px;
+                border-radius: 6px;
+                background: #0176d3;
+                color: #ffffff;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                flex-shrink: 0;
+              "
+            >
+              <svg
+                width="20"
+                height="20"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                aria-hidden="true"
+              >
+                <path d="M3 12a9 9 0 1 0 3-6.7L3 8"></path>
+                <path d="M3 3v5h5"></path>
+                <path d="M12 7v5l4 2"></path>
+              </svg>
+            </div>
+            <div
+              style="
+                display: flex;
+                flex-direction: column;
+                gap: 2px;
+                min-width: 0;
+              "
+            >
+              <h2
+                style="
+                  margin: 0;
+                  font-size: 18px;
+                  font-weight: 700;
+                  line-height: 1.3;
+                "
+              >
+                매장 이력
+              </h2>
+              <div style="font-size: 13px; color: #5c5c5c">
+                한끼정성 강남점 · HK-0001 · 담당 SV 김 길동
+              </div>
+            </div>
+          </div>
+
+          <div
+            role="group"
+            aria-label="유형 필터"
+            style="
+              display: flex;
+              flex-wrap: wrap;
+              gap: 8px;
+              padding: 4px 20px 8px;
+            "
+          >
+            <sc-for list="{{ chips }}" as="chip" hint-placeholder-count="4">
+              <button
+                type="button"
+                aria-pressed="{{ chip.pressed }}"
+                onClick="{{ chip.pick }}"
+                style="min-height: 36px; padding: 0 14px; border-radius: 18px; border: 1px solid {{ chip.border }}; background: {{ chip.bg }}; color: {{ chip.fg }}; font-size: 13px; font-weight: 700; cursor: pointer; display: inline-flex; align-items: center; gap: 6px"
+              >
+                {{ chip.label }}<span style="font-weight: 500; opacity: 0.85"
+                  >{{ chip.count }}</span
+                >
+              </button>
+            </sc-for>
+          </div>
+
+          <div
+            style="display: flex; flex-direction: column; padding: 4px 20px 8px"
+          >
+            <sc-for list="{{ groups }}" as="group" hint-placeholder-count="3">
+              <div style="display: flex; flex-direction: column">
+                <div
+                  style="
+                    display: flex;
+                    align-items: center;
+                    gap: 10px;
+                    padding: 14px 0 10px;
+                  "
+                >
+                  <div
+                    style="
+                      font-size: 13px;
+                      font-weight: 700;
+                      color: #5c5c5c;
+                      white-space: nowrap;
+                    "
+                  >
+                    {{ group.label }}
+                  </div>
+                  <div style="flex: 1; height: 1px; background: #e5e5e5"></div>
+                </div>
+                <sc-for
+                  list="{{ group.events }}"
+                  as="ev"
+                  hint-placeholder-count="2"
+                >
+                  <div style="display: flex; gap: 14px; align-items: stretch">
+                    <div
+                      style="
+                        width: 52px;
+                        flex-shrink: 0;
+                        text-align: right;
+                        padding-top: 6px;
+                      "
+                    >
+                      <div
+                        style="
+                          font-size: 15px;
+                          font-weight: 700;
+                          line-height: 1.2;
+                        "
+                      >
+                        {{ ev.dateLabel }}
+                      </div>
+                      <div style="font-size: 12px; color: #5c5c5c">
+                        {{ ev.dow }}요일
+                      </div>
+                    </div>
+                    <div
+                      style="
+                        position: relative;
+                        width: 34px;
+                        flex-shrink: 0;
+                        display: flex;
+                        justify-content: center;
+                      "
+                    >
+                      <div
+                        style="
+                          position: absolute;
+                          top: 0;
+                          bottom: 0;
+                          left: 16px;
+                          width: 2px;
+                          background: #e5e5e5;
+                        "
+                      ></div>
+                      <div
+                        style="position: relative; margin-top: 2px; width: 34px; height: 34px; box-sizing: border-box; border-radius: 50%; background: {{ ev.typeBg }}; color: {{ ev.typeColor }}; border: 2px solid {{ ev.typeColor }}; display: flex; align-items: center; justify-content: center"
+                      >
+                        <sc-if
+                          value="{{ ev.isInspection }}"
+                          hint-placeholder-val="{{ true }}"
+                        >
+                          <svg
+                            width="16"
+                            height="16"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            stroke-width="2.2"
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                            aria-hidden="true"
+                          >
+                            <rect
+                              x="8"
+                              y="2"
+                              width="8"
+                              height="4"
+                              rx="1"
+                            ></rect>
+                            <path
+                              d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"
+                            ></path>
+                            <path d="m9 14 2 2 4-4"></path>
+                          </svg>
+                        </sc-if>
+                        <sc-if
+                          value="{{ ev.isAction }}"
+                          hint-placeholder-val="{{ false }}"
+                        >
+                          <svg
+                            width="16"
+                            height="16"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            stroke-width="2.2"
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                            aria-hidden="true"
+                          >
+                            <path
+                              d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94z"
+                            ></path>
+                          </svg>
+                        </sc-if>
+                        <sc-if
+                          value="{{ ev.isPenalty }}"
+                          hint-placeholder-val="{{ false }}"
+                        >
+                          <svg
+                            width="16"
+                            height="16"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            stroke-width="2.2"
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                            aria-hidden="true"
+                          >
+                            <path d="M5 22V3"></path>
+                            <path d="M5 4h12l-2.5 4.5L17 13H5"></path>
+                          </svg>
+                        </sc-if>
+                      </div>
+                    </div>
+                    <div
+                      style="
+                        flex: 1;
+                        min-width: 0;
+                        margin-bottom: 12px;
+                        padding: 12px 16px;
+                        border: 1px solid #e5e5e5;
+                        border-radius: 8px;
+                        background: #ffffff;
+                        display: flex;
+                        flex-direction: column;
+                        gap: 6px;
+                      "
+                    >
+                      <div
+                        style="
+                          display: flex;
+                          align-items: center;
+                          gap: 8px;
+                          flex-wrap: wrap;
+                        "
+                      >
+                        <span
+                          style="font-size: 12px; font-weight: 700; color: {{ ev.typeColor }}"
+                          >{{ ev.typeLabel }}</span
+                        >
+                        <span style="color: #c9c9c9" aria-hidden="true">·</span>
+                        <a href="#" style="font-size: 13px; font-weight: 700"
+                          >{{ ev.no }}</a
+                        >
+                        <span style="flex: 1"></span>
+                        <span
+                          style="display: inline-flex; align-items: center; min-height: 22px; padding: 0 10px; border-radius: 11px; background: {{ ev.badgeBg }}; color: {{ ev.badgeFg }}; font-size: 12px; font-weight: 700"
+                          >{{ ev.status }}</span
+                        >
+                      </div>
+                      <div
+                        style="
+                          display: flex;
+                          align-items: center;
+                          gap: 8px;
+                          flex-wrap: wrap;
+                        "
+                      >
+                        <span style="font-size: 15px; font-weight: 700"
+                          >{{ ev.title }}</span
+                        >
+                        <sc-if
+                          value="{{ ev.required }}"
+                          hint-placeholder-val="{{ false }}"
+                        >
+                          <span
+                            style="
+                              display: inline-flex;
+                              align-items: center;
+                              min-height: 20px;
+                              padding: 0 6px;
+                              border-radius: 4px;
+                              border: 1px solid #ba0517;
+                              color: #ba0517;
+                              font-size: 11px;
+                              font-weight: 700;
+                            "
+                            >필수 위생</span
+                          >
+                        </sc-if>
+                      </div>
+                      <sc-if
+                        value="{{ ev.isInspection }}"
+                        hint-placeholder-val="{{ true }}"
+                      >
+                        <div
+                          style="
+                            display: flex;
+                            flex-direction: column;
+                            gap: 6px;
+                          "
+                        >
+                          <div
+                            style="
+                              position: relative;
+                              height: 6px;
+                              border-radius: 9999px;
+                              background: #e5e5e5;
+                            "
+                          >
+                            <div
+                              style="height: 100%; width: {{ ev.pct }}%; border-radius: 9999px; background: {{ ev.badgeBg }}"
+                            ></div>
+                            <div
+                              style="
+                                position: absolute;
+                                top: -3px;
+                                bottom: -3px;
+                                left: 80%;
+                                width: 2px;
+                                background: #181818;
+                              "
+                            ></div>
+                          </div>
+                          <div
+                            style="
+                              display: flex;
+                              align-items: center;
+                              gap: 10px;
+                              flex-wrap: wrap;
+                              font-size: 13px;
+                              color: #5c5c5c;
+                            "
+                          >
+                            <span
+                              ><b style="color: #181818">{{ ev.score }}</b> / {{
+                              ev.max }}점 · 달성률 {{ ev.pct }}%</span
+                            >
+                            <sc-if
+                              value="{{ ev.hasReqDef }}"
+                              hint-placeholder-val="{{ false }}"
+                            >
+                              <span style="color: #ba0517; font-weight: 700"
+                                >필수 항목 미흡 {{ ev.reqDef }}건</span
+                              >
+                            </sc-if>
+                          </div>
+                        </div>
+                      </sc-if>
+                      <sc-if
+                        value="{{ ev.hasDetail }}"
+                        hint-placeholder-val="{{ false }}"
+                      >
+                        <div
+                          style="
+                            display: flex;
+                            align-items: center;
+                            gap: 10px;
+                            flex-wrap: wrap;
+                            font-size: 13px;
+                            color: #5c5c5c;
+                          "
+                        >
+                          <span>{{ ev.detail }}</span>
+                          <sc-if
+                            value="{{ ev.hasWarn }}"
+                            hint-placeholder-val="{{ false }}"
+                          >
+                            <span style="color: #ba0517; font-weight: 700"
+                              >{{ ev.warn }}</span
+                            >
+                          </sc-if>
+                        </div>
+                      </sc-if>
+                    </div>
+                  </div>
+                </sc-for>
+              </div>
+            </sc-for>
+          </div>
+
+          <div style="padding: 12px 20px; border-top: 1px solid #e5e5e5">
+            <span style="font-size: 13px; color: #5c5c5c"
+              >최근 12개월 · {{ visibleCount }}건</span
+            >
+          </div>
+        </div>
+      </div>
+    </x-dc>
+    <script
+      type="text/x-dc"
+      data-dc-script
+      data-props='{"$preview":{"width":808,"height":1240}}'
+    >
+      class Component extends DCLogic {
+        renderVals() {
+          const filter = (this.state && this.state.filter) || 'all';
+          const TYPE = {
+            inspection: { label: '점검', color: '#0176d3', bg: '#eef4ff' },
+            action: { label: '시정조치', color: '#0b6b66', bg: '#e6f6f5' },
+            penalty: { label: '페널티', color: '#5a1ba9', bg: '#f2ebfd' }
+          };
+          const TONE = {
+            pass: { bg: '#2e844a', fg: '#ffffff' },
+            correction: { bg: '#fe9339', fg: '#181818' },
+            fail: { bg: '#ba0517', fg: '#ffffff' },
+            pending: { bg: '#eef4ff', fg: '#014486' },
+            done: { bg: '#ebf7e6', fg: '#22683e' }
+          };
+          const DOW = ['일', '월', '화', '수', '목', '금', '토'];
+          const raw = [
+            { type: 'action', date: '2026-10-14', no: 'CA-000006', title: '손 씻기 시설 비누 비치', required: true, status: '요청', tone: 'pending', detail: '기한 10.17 (위생 3일) · 재방문 확인 필요', warn: '' },
+            { type: 'penalty', date: '2026-10-14', no: 'PEN-000002', title: '1차 경고', required: false, status: '승인 대기', tone: 'pending', detail: '사유 INS-202610-0001 불합격 · 권역 팀장 승인', warn: '' },
+            { type: 'inspection', date: '2026-10-06', no: 'INS-202610-0001', title: '정기점검', required: false, status: '불합격', tone: 'fail', score: 27, max: 40, reqDef: 1 },
+            { type: 'action', date: '2026-09-12', no: 'CA-000002', title: '냉장고 온도 기록표 작성', required: false, status: '확인완료', tone: 'done', detail: '기한 09.19 · 09.22 완료', warn: '기한 3일 초과' },
+            { type: 'inspection', date: '2026-09-08', no: 'INS-202609-0001', title: '정기점검', required: false, status: '시정 필요', tone: 'correction', score: 31, max: 40, reqDef: 0 },
+            { type: 'inspection', date: '2026-08-11', no: 'INS-202608-0001', title: '정기점검', required: false, status: '합격', tone: 'pass', score: 35, max: 40, reqDef: 0 }
+          ];
+
+          const counts = { all: raw.length, inspection: 0, action: 0, penalty: 0 };
+          raw.forEach((e) => { counts[e.type] += 1; });
+
+          const chipDefs = [
+            { value: 'all', label: '전체' },
+            { value: 'inspection', label: '점검' },
+            { value: 'action', label: '시정조치' },
+            { value: 'penalty', label: '페널티' }
+          ];
+          const chips = chipDefs.map((c) => {
+            const on = c.value === filter;
+            return {
+              label: c.label,
+              count: counts[c.value],
+              pressed: on ? 'true' : 'false',
+              bg: on ? '#0176d3' : '#ffffff',
+              fg: on ? '#ffffff' : '#0176d3',
+              border: on ? '#0176d3' : '#c9c9c9',
+              pick: () => this.setState({ filter: c.value })
+            };
+          });
+
+          const visible = raw.filter((e) => filter === 'all' || e.type === filter);
+          const groups = [];
+          visible.forEach((e) => {
+            const d = new Date(e.date + 'T00:00:00');
+            const key = e.date.slice(0, 7);
+            let g = groups.find((x) => x.key === key);
+            if (!g) {
+              g = { key: key, label: d.getFullYear() + '년 ' + (d.getMonth() + 1) + '월', events: [] };
+              groups.push(g);
+            }
+            const t = TYPE[e.type];
+            const tone = TONE[e.tone];
+            const pct = e.max ? Math.round((e.score / e.max) * 100) : 0;
+            g.events.push({
+              no: e.no,
+              title: e.title,
+              status: e.status,
+              required: !!e.required,
+              dateLabel: String(d.getMonth() + 1).padStart(2, '0') + '.' + String(d.getDate()).padStart(2, '0'),
+              dow: DOW[d.getDay()],
+              typeLabel: t.label,
+              typeColor: t.color,
+              typeBg: t.bg,
+              badgeBg: tone.bg,
+              badgeFg: tone.fg,
+              isInspection: e.type === 'inspection',
+              isAction: e.type === 'action',
+              isPenalty: e.type === 'penalty',
+              score: e.score,
+              max: e.max,
+              pct: pct,
+              reqDef: e.reqDef || 0,
+              hasReqDef: (e.reqDef || 0) > 0,
+              detail: e.detail || '',
+              hasDetail: !!e.detail,
+              warn: e.warn || '',
+              hasWarn: !!e.warn
+            });
+          });
+
+          return { chips: chips, groups: groups, visibleCount: visible.length };
+        }
+      }
+    </script>
+  </body>
+</html>

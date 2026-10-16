@@ -199,3 +199,64 @@
    record-form 에러에는 `body`가 없어 그대로 넘기면 일반 문구만 나온다. 실제 화면에서
    record-form 배너에는 일반 문구("An error occurred…"), Toast에는 D5 트리거 문구가 함께 떠서
    감싼 효과를 확인했다. 에러는 읽기 전에 사라지면 안 되므로 sticky, 성공은 dismissible.
+
+## 10/14 (수) D8 — LWC 심화 · 보안 · 외부 연동 | 결정과 이유
+
+> 만든 것: 점검 상세의 조치 추가(`correctiveActionForm` → `created` 이벤트 → 부모 `refreshApex`, `CorrectiveActionController`),
+> 보안 점검 결과표(`docs/d8-security-review.md`, runAs 테스트 4건), 물류 통보 콜아웃 스텁(`LogisticsNotifyService` · Mock ·
+> Named/External Credential `HankkiLogistics` · 권한 집합 「물류 연동」), 매장 이력 타임라인 SC-03(`FranchiseHistoryController` ·
+> `franchiseHistoryTimeline`, Account 레코드 페이지 「매장 이력」 탭 · App Default 가맹점 점검 앱), 발표 계획 1p(`docs/demo/`)
+> 테스트: RunLocalTests(23:42) 프로젝트 63건 Pass 100% · Org Wide 94% · 프로젝트 클래스 92.4%
+
+1. **보안 필드 층은 기존 판정(`Judgement__c`) 편집 FLS + runAs 테스트 4건으로 증명했다** — 시연용
+   「내부 메모」 필드는 요건서 · ERD · 권한 매트릭스 어디에도 없어 발표를 위해 요건을 만드는 셈이고,
+   `with sharing`을 뺀 코드를 임시 배포해 "수정 전" 화면을 만드는 것도 org에 위험을 남겨 하지 않았다.
+   대조군(같은 저장문을 관리자가 실행하면 성공)으로 막은 것이 코드가 아니라 SV의 필드 권한임을 보였다.
+2. **최근 정기점검일 갱신 한 줄만 `update as system`으로 고쳤다** — 김 길동(SV)으로 재현하니 정기점검을
+   점검완료로 저장할 때 FLS 때문에 실패했다. 관리자로만 돌던 테스트는 못 잡았다. 권한을 넘는 범위를
+   그 한 줄로 좁히고, SV runAs 회귀 테스트를 붙였다. 컨트롤러는 D7에 이미 `with sharing` · `USER_MODE` ·
+   정렬 화이트리스트가 있어 고치지 않았다 — 없던 것을 고친 것처럼 적지 않는다.
+3. **심화 요건은 BR-08 「공급 제한 승인 즉시 물류팀 통보」 콜아웃 스텁으로 했다** — 요건서 As-Is의
+   "통보 지연으로 제한 기간에 출고 발생"을 직접 푸는 연동이다(HACCP 연동은 요건 근거가 없어 제외).
+   응답별로 재시도 여부를 나눴다(4xx 불가 · 429/5xx/시간 초과 가능, 멱등성 키 = 페널티 Id).
+   승인 저장은 DML 트랜잭션 한가운데라 동기 콜아웃이 불가해, 호출부는 Queueable로 분리할 다음 단계로 남겼다.
+4. **프록시 503(ERR_DNS_FAIL)은 코드를 바꾸지 않고 문서로 남기기로 했다** — 없는 주소로 호출하면
+   CalloutException이 날 거라 가정했지만, 실측해 보니 Salesforce 프록시(squid)가 DNS 실패를 503으로 돌려줬다.
+   상태코드만으로는 상대 장애와 우리 설정 오류를 구분할 수 없어, 503은 재시도로 두고
+   "503 + X-Squid-Error면 우리 설정부터 확인"을 인터페이스 정의서에 적는다.
+5. **10/19 발표는 현장 흐름(점검 → 판정 → 시정조치 → 매장 이력)을 중심으로 한다** — 구현과 테스트가
+   가장 많이 쌓인 경로이고, 아직 못 푼 두 가지(SV 페널티 공유 경로, Queueable 연결)가 시연 한가운데
+   오지 않는다. 다른 안(페널티 · 연동 중심, 매장 이력 중심)과 비교해 골랐다.
+
+### 겪은 것
+
+- 점검 검색 레이아웃이 레포에 없어, **폴더 전체를 배포할 때마다 org에서 다시 설정한 것이 지워졌다**(두 번).
+  이후로는 작업한 파일만 배포한다.
+- 매장 이력 페이지를 Org Default로 활성화했다가 App Default로 바꿨다. 활성화 정보가 레포에 있는
+  앱 파일(`FranchiseInspectionApp`)에 들어가야 다음 배포 때 풀리지 않는다 — FlexiPage와 함께 retrieve했다.
+- 테스트 출력의 "Tests Ran"은 `@TestSetup`을 포함한 숫자다. `LogisticsNotifyServiceTest`가 7로 보이지만 메서드는 6개다.
+- `Assert.fail`을 try 안에 두면 `catch(Exception)`이 그 실패까지 삼켜 거짓 통과한다 — 결과를 변수로 받고 밖에서 검증했다.
+- `lightning-record-form`(`layout-type="Full"`)은 페이지 레이아웃의 2단 배치를 따르지 않는다 → `columns="2"`.
+- 김 길동(SV) 화면에서도 페널티가 관리자와 같은 건수로 보였다. 어떤 공유 경로인지는 아직 확인하지 않았다.
+
+### 내일(D9)로 넘긴 것
+
+- **커밋**: 10/14 13:39 이후 변경이 전부 미커밋. 기능 단위로 나눠 커밋한다.
+  `docs/demo/Salesforce_온보딩_발표_D8_과제.html`은 레포에 넣지 않는다(삭제). `CLAUDE.md` 「현재 단계」 · 「산출물 현황」 갱신.
+- **결정할 것**
+  1. SV 페널티 공유 경로 — `Penalty__Share`의 RowCause(소유자 · 공유 규칙 · 수동)로 확인
+  2. 페널티 승인 단계 — 요건 BR-07~09는 유형별 승인자 3명, 지금은 권역팀장(Manager) 1단계. 영업본부장 사용자 · Role 없음
+  3. 페널티 자동 생성(BR-08 반복 지적 · 연속 불합격) — D5에 미룬 뒤 미구현. 구현할지, 범위 밖으로 문서화할지
+  4. 물류 통보 호출부 — Queueable 연결 · 재시도 상한 · 시간 초과 판별(메시지 문구 의존)
+  5. 매장 이력에 미래 일정 표시 — 세종점 · 의정부점 · 인천송도점에 10/15 점검예정
+  6. 매장 이력 「(위생 3일)」 문구 — 시정조치 쿼리에 `InspectionResult__r.Category__c` 추가
+  7. 레이아웃 버튼 정리 — Account의 New Case, 점검의 New Contact · New Opportunity (Platform 사용자는 쓸 수 없음)
+  8. 점검 검색 레이아웃 retrieve — 폴더 전체 배포 때 org 설정이 지워지지 않게
+  9. 코드 정리 — `InspectionService`의 호출자 없는 메서드 2개(커버리지 49% 원인), D1 잔재 `OnboardingService`
+  10. 접근 모드 미지정 DML — 공식 문서로 기본 동작 확인 후 `InspectionService` · `CorrectiveActionService`에 `as system` 명시 여부
+  11. Flow API Name `UniqueName`(시정조치 기한 자동설정) — 이름은 바꾸지 않고 산출물에 예외로 기록
+  12. 권한 집합 「점검 목록 조회」 Description 226 / 255자 — 다음 추가 전에 정리
+- **산출물**: 화면 설계(03 솔루션 기능 및 화면 설계서) · 단위 테스트 결과(07) · 배포 절차(11 Cut Over / 19 소스 이관 목록 — 양식 결정) ·
+  인터페이스 정의서(06: IF-001 물류 통보 구현 · IF-002 알림톡 설계만 · IF-003 POS 2차) 작성. 요건서 · ERD(HTML)를 회사 양식으로 옮길지 결정
+- **문서 정리**: 발표 계획 1p ⑤의 테스트 숫자(55건 · 93% → 63건 · 94%), `d8-security-review.md` 문서 정보 버전(V1.0 → V1.2),
+  보안 점검 결과표 HTML(V1.3)을 레포에 둘지 · 문서 번호

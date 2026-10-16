@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<LightningComponentBundle xmlns="http://soap.sforce.com/2006/04/metadata">
+    <apiVersion>67.0</apiVersion>
+    <isExposed>false</isExposed>
+    <masterLabel>시정조치 추가</masterLabel>
+    <description
+  >26-10-14 점검 미흡 항목에 시정조치 추가 by Kai / 26-10-14 inspectionDetail 자식 전용으로 전환(App Builder 비노출) by Kai</description>
+</LightningComponentBundle>

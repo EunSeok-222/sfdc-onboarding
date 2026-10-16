@@ -1,0 +1,56 @@
+<template>
+  <lightning-card title="시정조치 추가" icon-name="standard:task">
+    <div class="slds-var-p-horizontal_medium">
+      <template lwc:if={isLoading}>
+        <lightning-spinner
+          alternative-text="미흡 항목을 불러오는 중"
+          size="small"
+        ></lightning-spinner>
+      </template>
+      <template lwc:elseif={hasDeficientResults}>
+        <lightning-combobox
+          name="inspectionResult"
+          label="조치할 미흡 항목"
+          placeholder="미흡 항목을 선택하세요"
+          options={resultOptions}
+          value={selectedResultId}
+          onchange={handleResultChange}
+          required
+        ></lightning-combobox>
+        <lightning-record-edit-form
+          object-api-name="CorrectiveAction__c"
+          onsubmit={handleSubmit}
+          onsuccess={handleSuccess}
+          onerror={handleError}
+        >
+          <!-- NOTE: 결과 항목(M-D 부모)은 위 콤보박스로만 고른다. 사용자가 직접 바꾸지 못하게 숨기고 값만 넘긴다 -->
+          <lightning-input-field
+            field-name="InspectionResult__c"
+            value={selectedResultId}
+            class="slds-hide"
+          ></lightning-input-field>
+          <lightning-input-field field-name="Status__c"></lightning-input-field>
+          <lightning-input-field
+            field-name="RequiresRevisit__c"
+          ></lightning-input-field>
+          <!-- NOTE: 시정 기한(DueDate__c)은 받지 않는다. 「시정조치 기한 자동설정」 Flow(before-save)가 분류에 따라
+               오늘 + 위생 3일 / 그 외 7일(InspectionRule__mdt)로 채운다. 화면에서 값을 받으면 Flow가 이미 값이 있다고 보고
+               덮어쓰지 않아 회사 기준과 다른 기한이 저장될 수 있다 -->
+          <div class="slds-var-m-top_small">
+            <lightning-button
+              type="submit"
+              label="조치 추가"
+              variant="brand"
+              disabled={isSaving}
+            ></lightning-button>
+          </div>
+        </lightning-record-edit-form>
+      </template>
+      <template lwc:elseif={isLoaded}>
+        <p class="slds-text-color_weak">
+          미흡 항목이 없어 추가할 시정조치가 없습니다.
+        </p>
+      </template>
+    </div>
+  </lightning-card>
+</template>

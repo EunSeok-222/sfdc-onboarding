@@ -124,6 +124,14 @@ Approval Process API Name 패턴(`Quote_DiscountApproval` — PascalCase 영문)
 - 작업 브랜치: `develop` 하나 (10/15부터). 이전 Day 브랜치(`chore/d1-…` ~ `feat/d4-…`)는 그대로 둔다.
 - push · PR · 원격 브랜치 정리는 Kai가 요청할 때만 한다.
 
+## 배포 · org 안전 규칙 (10/16 kai-dev 오배포 이후)
+
+- `logistics/`는 hankki-logistics 전용 패키지다. kai-dev 배포 명령에 logistics 경로나 컴포넌트 이름을 넣지 않는다.
+- 이 레포와 두 org(kai-dev · hankki-logistics)는 Claude Code 세션 하나에서만 작업한다.
+- 모든 sf 명령에 `-o <alias>`를 명시한다. 기본 org에 기대지 않는다.
+- 경로 · 매니페스트 없는 `sf project deploy start`는 쓰지 않는다(packageDirectories 전체가 대상이 될 수 있다).
+  배포 전에 대상 org와 컴포넌트 목록을 먼저 보여 준다.
+
 ## 자주 쓰는 명령어
 
 ```bash
@@ -133,6 +141,8 @@ sf apex run test --class-names <Name>Test --synchronous --result-format human -o
 sf apex run test --test-level RunLocalTests --code-coverage --result-format human -o kai-dev
 sf lightning generate component --name <camelName> --type lwc --output-dir force-app/main/default/lwc
 sf org open -o kai-dev
+sf project deploy start --source-dir logistics/main/default/classes/<Name>.cls -o hankki-logistics   # 물류 org Apex 하나
+sf apex run test --class-names <Name>Test --synchronous --result-format human -o hankki-logistics  # 물류 org 테스트
 ```
 
 배포는 파일 단위로 한다(폴더 전체보다 에러 찾기 쉬움). 테스트는 배포 직후 해당 클래스만 먼저, 전체는 하루 끝에.

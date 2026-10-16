@@ -91,6 +91,19 @@
 Approval Process API Name 패턴(`Quote_DiscountApproval` — PascalCase 영문)에서 유추한 것이다.
 회사 기준 v3.0에 해당 항목이 추가되면 그것을 우선한다.
 
+### 자동 생성 API Name — 이름 유지 예외
+
+화면(Lightning App Builder · Flow Builder)에서 한글 Label로 만들면서 생긴 이름이다. 이미 배포 · 참조 중이라 바꾸지 않고 Label로 구분한다.
+새로 만들 때는 API Name을 직접 입력해 이런 이름이 생기지 않게 한다.
+
+| API Name       | 유형                    | Label                  | 용도 · 참조                                         |
+| -------------- | ----------------------- | ---------------------- | --------------------------------------------------- |
+| `UniqueName`   | Flow (Before Save)      | 기한·재방문 세팅       | `CorrectiveAction__c` 생성 시 기한 세팅 (D5)        |
+| `Tab`          | CustomTab               | 내 점검                | `FranchiseInspectionApp` 탭 → 페이지 `FlexiPage`    |
+| `FlexiPage`    | FlexiPage (App Page)    | 내 점검                | 탭 `Tab`                                            |
+| `Record_Page1` | FlexiPage (Record Page) | 점검 Record Page       | `Inspection__c` View 재정의 (Org Default · Desktop) |
+| `UtilityBar`   | FlexiPage (Utility Bar) | 가맹점 점검 UtilityBar | `FranchiseInspectionApp`의 유틸리티 바              |
+
 ## 오브젝트·필드 Label 언어
 
 - **Label은 한글, API Name은 영문 PascalCase**(전역 기준 v3.0대로 밑줄 제거)로 만든다.

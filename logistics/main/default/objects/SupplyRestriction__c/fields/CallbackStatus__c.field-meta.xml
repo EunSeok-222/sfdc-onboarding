@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>CallbackStatus__c</fullName>
+    <description
+  >26-10-16 처리 결과를 송신 측(kai-dev)에 회신했는지(IF-004) by Kai</description>
+    <label>회신 상태</label>
+    <required>false</required>
+    <type>Picklist</type>
+    <valueSet>
+        <restricted>true</restricted>
+        <valueSetDefinition>
+            <sorted>false</sorted>
+            <value><fullName>미전송</fullName><default>true</default><label
+        >미전송</label></value>
+            <value><fullName>전송완료</fullName><default>false</default><label
+        >전송완료</label></value>
+            <value><fullName>전송실패</fullName><default>false</default><label
+        >전송실패</label></value>
+        </valueSetDefinition>
+    </valueSet>
+</CustomField>

@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>StoreCode__c</fullName>
+    <description
+  >26-10-16 출고를 막을 매장. IF-001 storeCode(송신 측 Account.StoreCode__c) by Kai</description>
+    <externalId>false</externalId>
+    <label>매장코드</label>
+    <length>20</length>
+    <required>true</required>
+    <type>Text</type>
+    <unique>false</unique>
+</CustomField>

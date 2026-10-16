@@ -7,6 +7,11 @@
         <externalCredentialPrincipal
     >HankkiLogistics-HankkiLogisticsPrincipal</externalCredentialPrincipal>
     </externalCredentialPrincipalAccesses>
+    <externalCredentialPrincipalAccesses>
+        <enabled>true</enabled>
+        <externalCredentialPrincipal
+    >HankkiLogisticsOAuth-HankkiLogisticsOAuthPrincipal</externalCredentialPrincipal>
+    </externalCredentialPrincipalAccesses>
     <hasActivationRequired>false</hasActivationRequired>
     <label>물류 연동</label>
 </PermissionSet>

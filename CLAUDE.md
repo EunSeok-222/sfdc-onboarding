@@ -10,8 +10,8 @@
 
 ## 현재 단계
 
-- D7 (10/13): LWC 기초 · 데이터 연동 — 점검 상세(record-form) · 점검 목록(datatable 검색/정렬/페이징)
-- 설계 근거와 Day별 과제는 `docs/` 문서를 따른다. 진행 상황은 `docs/daily-log.md`가 최신이다.
+- D9 (10/15): 배포/형상관리 · 통합 · 산출물 · 리허설
+- 설계 근거와 Day별 과제는 아래 「문서 위치」의 문서를 따른다. 진행 상황은 `docs/daily-log.md`가 최신이다.
 
 ## org 제약
 
@@ -45,18 +45,34 @@
 - 대량 · 주기 처리는 Batch + Schedulable. 건수가 적고 순서가 중요한 후속 작업만 Queueable.
 - 화면: 레코드 1건 CRUD는 LDS(`lightning-record-form` 등)로 Apex 없이. 검색 · 집계 · 다중 오브젝트만 Apex Controller.
 
-## 산출물 현황 [확인] — `ls force-app/main/default/classes lwc`로 맞춘 뒤 이 표시를 지운다
+## 산출물 현황 — D8(10/14) 기준, `force-app/main/default` 파일 목록과 대조함
 
-| 구분     | 이름                                                                | 역할                                                              |
-| -------- | ------------------------------------------------------------------- | ----------------------------------------------------------------- |
-| 트리거   | `Inspection.trigger` → `InspectionTriggerHandler`                   | 상태 전이 검증 · 판정 세팅 · 가맹점 최근 점검일 갱신              |
-| Service  | `InspectionService`                                                 | 판정 계산(`applyJudgements` · `judgeInspections`)                 |
-| Service  | `CorrectiveActionService`                                           | 기한 초과 → 지연(`markOverdue`)                                   |
-| Selector | `InspectionRuleSelector`                                            | `InspectionRule__mdt` 접근 (`passRate` · `correctionRate` · 기한) |
-| Batch    | `OverdueCorrectiveActionBatch` + `OverdueCorrectiveActionScheduler` | BR-05, 매일 01:00                                                 |
-| 테스트   | `InspectionServiceTest` 외, `TestDataFactory`                       | 42개 통과, org 92% (D6 기준)                                      |
-| 설정     | `InspectionRule__mdt` 「점검 기준」 `Default` 레코드                | 합격 0.8 · 시정 0.6 · 기한 3/7일 · 재점검 3회                     |
-| 클릭     | Validation Rule(재점검이면 원본 필수), Flow(시정 기한 세팅)         | D5                                                                |
+| 구분       | 이름                                                                                                                                                 | 역할                                                                                           |
+| ---------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
+| 트리거     | `Inspection.trigger` → `InspectionTriggerHandler`                                                                                                    | 상태 전이 검증 · 판정 세팅 · 가맹점 최근 점검일 갱신                                           |
+| Service    | `InspectionService`                                                                                                                                  | 판정 계산(`applyJudgements`). `judgeInspections` · `countInspectionsByFranchise`는 호출자 없음 |
+| Service    | `FranchiseInspectionDateService`                                                                                                                     | 가맹점 최근 정기점검일 재계산. 갱신 한 줄만 `update as system`(D8, SV FLS 실패 수정)           |
+| Service    | `CorrectiveActionService`                                                                                                                            | 기한 초과 → 지연(`markOverdue`)                                                                |
+| Service    | `LogisticsNotifyService` + `LogisticsNotifyMock`                                                                                                     | 공급 제한 승인 → 물류팀 통보 콜아웃 스텁(BR-08). 트리거 · Queueable에는 아직 연결 안 함        |
+| Selector   | `InspectionRuleSelector`                                                                                                                             | `InspectionRule__mdt` 접근 (`passRate` · `correctionRate` · 기한)                              |
+| Batch      | `OverdueCorrectiveActionBatch` + `OverdueCorrectiveActionScheduler`                                                                                  | BR-05, 매일 01:00                                                                              |
+| Controller | `InspectionListController`                                                                                                                           | 내 점검 목록 검색 · 정렬(컬럼 화이트리스트) · 페이징(`search`)                                 |
+| Controller | `CorrectiveActionController`                                                                                                                         | 점검의 시정조치 목록(`getByInspection`) · 미흡 결과 항목(`getDeficientResults`)                |
+| Controller | `FranchiseHistoryController`                                                                                                                         | 매장 이력(SC-03) — 점검 · 시정조치 · 페널티 최근 12개월(`getHistory`)                          |
+| LWC        | `inspectionList` 「내 점검 목록」                                                                                                                    | 점검 목록 datatable (D7)                                                                       |
+| LWC        | `inspectionDetail` 「점검 상세」 · `inspectionJudgementPanel` 「점검 판정 패널」                                                                     | 점검 레코드 페이지. 상세에 시정조치 목록 + 추가 폼, 저장 후 `refreshApex`(D8)                  |
+| LWC        | `correctiveActionForm` 「시정조치 추가」(비노출)                                                                                                     | `inspectionDetail` 안에서만 사용. 저장 성공 → `created` 이벤트                                 |
+| LWC        | `franchiseHistoryTimeline` 「매장 이력」                                                                                                             | Account 레코드 페이지 「매장 이력」 탭                                                         |
+| LWC        | `ldsUtils`(비노출)                                                                                                                                   | `reduceErrors` — 오류 객체를 문구 배열로                                                       |
+| 페이지     | `Record_Page1` 「점검 Record Page」 · `Account_Record_Page`                                                                                          | 점검: Org Default(Desktop) · Account: App Default(가맹점 점검 앱 · Desktop)                    |
+| 연동       | Named Credential · External Credential `HankkiLogistics`                                                                                             | 물류 시스템 주소(`.example` 임의 주소) · 인증 헤더. 비밀값은 레포에 없음                       |
+| 권한 집합  | 「점검 목록 조회」 `InspectionListAccess`                                                                                                            | 컨트롤러 3개 호출 권한 (Description 226 / 255자)                                               |
+| 권한 집합  | 「점검표 관리」 `InspectionTemplateManagement`                                                                                                       | 점검표 항목 Modify All                                                                         |
+| 권한 집합  | 「물류 연동」 `LogisticsIntegrationAccess`                                                                                                           | External Credential `HankkiLogistics` 주체 접근                                                |
+| 테스트     | `*Test` 9개, `TestDataFactory`                                                                                                                       | 63건 통과 · Org 94% · 프로젝트 클래스 92.4% (D8, 10/14 23:42 RunLocalTests)                    |
+| 설정       | `InspectionRule__mdt` 「점검 기준」 `Default` 레코드                                                                                                 | 합격 0.8 · 시정 0.6 · 기한 3/7일 · 재점검 3회                                                  |
+| 클릭       | Validation Rule(재점검이면 원본 필수), Flow `UniqueName` 「기한·재방문 세팅」, Screen Flow `CorrectiveAction_Complete_Screen` 「시정조치 완료 등록」 | D5                                                                                             |
+| 잔재       | `OnboardingService`                                                                                                                                  | D1 연습 코드. 업무와 무관 — 정리 여부는 D9 결정                                                |
 
 ## 네이밍 보충 규칙
 
@@ -71,7 +87,7 @@
 | Queue          | 한글 Natural Text        | PascalCase                                        | `미배정 점검` / `UnassignedInspection`         |
 | Public Group   | 한글 Natural Text        | PascalCase                                        | `경영진 열람` / `ExecutiveViewers`             |
 
-**근거**: 권한 매트릭스 V1.2(`docs/`)에 이미 정해진 명명을 따른다. 그 명명은 `naming.md`의 「일반 원칙」(의미가 명확한 풀네임)과
+**근거**: 권한 매트릭스 V1.2(산출물 폴더)에 이미 정해진 명명을 따른다. 그 명명은 `naming.md`의 「일반 원칙」(의미가 명확한 풀네임)과
 Approval Process API Name 패턴(`Quote_DiscountApproval` — PascalCase 영문)에서 유추한 것이다.
 회사 기준 v3.0에 해당 항목이 추가되면 그것을 우선한다.
 
@@ -81,13 +97,19 @@ Approval Process API Name 패턴(`Quote_DiscountApproval` — PascalCase 영문)
   예) Label `점검` / API `Inspection__c`
 - 가상 고객사(프랜차이즈 본사) 시연이 목적이라 화면은 한글이어야 자연스럽다.
 
-## 문서 위치 (`docs/`)
+## 문서 위치
 
-- 설계 근거(최신본): `01 요건 정의서 V1.0` · `02 ERD V1.0` · `03 권한 매트릭스 V1.2` (HTML)
-- 학습 자료: `SFDC_Day_4_핵심_개념_흐름도`, `한끼정성_Day6_핵심개념.html`, `한끼정성_Day7_핵심개념.html`
-  — Day 문서의 「오늘 할 일」 탭이 그날의 작업 순서다.
-- 진행 기록: `docs/daily-log.md` (매일 17:00 갱신). 없으면 진행 상황을 추측하지 말고 묻는다.
-- 커리큘럼: `SFDC_개발자_온보딩_커리큘럼_참여자용.html`
+- 산출물 · 설계 근거: `C:\Users\dldms\OneDrive\文档\산출물` — 레포 밖에서 관리한다. 레포에 사본을 두지 않는다.
+  요건 정의서(01) · ERD(02) · 권한 매트릭스(03) · 인터페이스 정의서(06) · 보안 점검 결과표 · 발표계획. 버전은 파일명에서 최신본을 확인한다.
+- 학습 자료: `C:\Users\dldms\OneDrive\文档\핵심개념` — Day별 핵심개념 HTML과 커리큘럼(`SFDC_개발자_온보딩_커리큘럼_참여자용.html`).
+  레포에 두지 않는다. Day 문서의 「오늘 할 일」 탭이 그날의 작업 순서다.
+- 레포 `docs/`: 진행 기록 `daily-log.md`(매일 17:00 갱신. 없으면 진행 상황을 추측하지 말고 묻는다) · `decision-log.md` ·
+  Day별 설계 · 인수인계 md · `d8-security-review.md`
+
+## 형상관리
+
+- 작업 브랜치: `develop` 하나 (10/15부터). 이전 Day 브랜치(`chore/d1-…` ~ `feat/d4-…`)는 그대로 둔다.
+- push · PR · 원격 브랜치 정리는 Kai가 요청할 때만 한다.
 
 ## 자주 쓰는 명령어
 
@@ -101,3 +123,4 @@ sf org open -o kai-dev
 ```
 
 배포는 파일 단위로 한다(폴더 전체보다 에러 찾기 쉬움). 테스트는 배포 직후 해당 클래스만 먼저, 전체는 하루 끝에.
+**폴더 전체(`--source-dir force-app`) 배포 금지** — 점검 검색 레이아웃이 아직 레포에 없다.

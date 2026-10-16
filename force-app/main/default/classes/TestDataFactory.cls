@@ -11,6 +11,7 @@
  *  2026.10.12   Kai        Updated     점검번호를 호출 간에도 이어지게 변경 (한 테스트 내 중복 방지)
  *  2026.10.12   Kai        Updated     createCorrectiveActions 추가 (D6 기한 초과 배치 테스트용)
  *  2026.10.14   Kai        Updated     createSvUser 이동 (InspectionTriggerHandlerTest → 공유, D8 runAs 테스트용)
+ *  2026.10.14   Kai        Updated     createSupplyRestrictionPenalties 추가 (D8 물류 통보 콜아웃 테스트용)
  * ======================================================================================
  *  @note        : @IsTest이므로 커버리지 분모에서 제외된다. doInsert = false면 insert 전 상태로
  *                 반환해 호출자가 필드를 더 손볼 수 있다 (벌크 테스트의 DML 1번 유지 목적)
@@ -252,5 +253,37 @@ public class TestDataFactory {
       insert correctiveActions;
     }
     return correctiveActions;
+  }
+
+  /**
+   * @description : 가맹점마다 승인된 공급 제한 페널티(BR-08)를 1건씩 만든다. 기간은 내일부터 1주.
+   * @author      : 이은석(Kai) | 2026.10.14
+   * @note        : 물류 통보 대상 조건(유형 공급 제한 · 승인 · 기간 · 매장코드)을 모두 채운다.
+   *                매장코드는 createFranchises가 채우므로 그 가맹점을 넘긴다
+   * @param franchises 부모 가맹점 (StoreCode__c가 있어야 통보 대상)
+   * @param doInsert   true면 insert까지 수행 (DML 1번)
+   * @return List<Penalty__c>
+   **/
+  public static List<Penalty__c> createSupplyRestrictionPenalties(
+    List<Account> franchises,
+    Boolean doInsert
+  ) {
+    List<Penalty__c> penalties = new List<Penalty__c>();
+    for (Account franchise : franchises) {
+      penalties.add(
+        new Penalty__c(
+          Franchise__c = franchise.Id,
+          PenaltyType__c = LogisticsNotifyService.PENALTY_TYPE_SUPPLY_RESTRICTION,
+          Status__c = LogisticsNotifyService.PENALTY_STATUS_APPROVED,
+          StartDate__c = Date.today().addDays(1),
+          EndDate__c = Date.today().addDays(7),
+          Reason__c = '같은 항목 3회 연속 지적 (BR-08)'
+        )
+      );
+    }
+    if (doInsert) {
+      insert penalties;
+    }
+    return penalties;
   }
 }

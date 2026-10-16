@@ -5,5 +5,7 @@
     "**/.sf": true,
     "**/.sfdx": true
   },
-  "xml.preferences.showSchemaDocumentationType": "none"
+  "xml.preferences.showSchemaDocumentationType": "none",
+  "markdown-mermaid.darkModeTheme": "default",
+  "markdown-mermaid.lightModeTheme": "default"
 }

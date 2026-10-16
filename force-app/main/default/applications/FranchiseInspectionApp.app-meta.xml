@@ -21,6 +21,7 @@
     <tabs>standard-report</tabs>
     <tabs>standard-Dashboard</tabs>
     <tabs>standard-Account</tabs>
+    <tabs>Tab</tabs>
     <uiType>Lightning</uiType>
     <utilityBar>UtilityBar</utilityBar>
 </CustomApplication>

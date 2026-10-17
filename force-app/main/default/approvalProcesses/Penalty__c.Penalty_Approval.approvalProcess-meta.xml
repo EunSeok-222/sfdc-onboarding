@@ -24,10 +24,11 @@
                 <type>userHierarchyField</type>
             </approver>
         </assignedApprover>
-        <label>권역팀장 승인</label>
+        <label>상위 관리자 승인</label>
         <name>RegionManager_Approval</name>
     </approvalStep>
-    <description>26-10-07 BR-07~09 페널티 권역팀장 승인 by Kai</description>
+    <description
+  >26-10-07 BR-07~09 페널티 승인 by Kai / 26-10-18 승인자 = 소유자의 상위 관리자(Manager) — 권역팀장 표기 정리 by Kai</description>
     <enableMobileDeviceAccess>false</enableMobileDeviceAccess>
     <entryCriteria>
         <criteriaItems>

@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- 틀(template) — user 자리 표시자는 배포 때 deploy-logistics-subscriber-config.ps1이 org에서 조회해 임시 사본에만 채운다.
+     실제 Username이 들어간 파일은 레포에 두지 않는다 -->
+<PlatformEventSubscriberConfig xmlns="http://soap.sforce.com/2006/04/metadata">
+    <batchSize>200</batchSize>
+    <masterLabel>LogisticsNotifyEventConfig</masterLabel>
+    <platformEventConsumer>LogisticsNotifyEvent</platformEventConsumer>
+    <user>{{INTEGRATION_USERNAME}}</user>
+</PlatformEventSubscriberConfig>

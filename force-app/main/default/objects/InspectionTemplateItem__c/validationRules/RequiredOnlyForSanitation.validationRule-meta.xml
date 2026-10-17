@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<ValidationRule xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>RequiredOnlyForSanitation</fullName>
+    <active>true</active>
+    <description
+  >26-10-18 필수(위생 필수)는 분류가 위생일 때만 지정 가능 (BR-03) by Kai</description>
+    <errorConditionFormula>AND(
+  IsRequired__c,
+  NOT(ISPICKVAL(Category__c, &quot;위생&quot;))
+)</errorConditionFormula>
+    <errorDisplayField>IsRequired__c</errorDisplayField>
+    <errorMessage
+  >위생 필수는 분류가 위생인 항목에만 지정할 수 있습니다.</errorMessage>
+</ValidationRule>

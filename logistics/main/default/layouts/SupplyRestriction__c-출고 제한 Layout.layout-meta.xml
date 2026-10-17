@@ -63,6 +63,10 @@
                 <behavior>Readonly</behavior>
                 <field>CallbackStatus__c</field>
             </layoutItems>
+            <layoutItems>
+                <behavior>Readonly</behavior>
+                <field>CallbackError__c</field>
+            </layoutItems>
         </layoutColumns>
         <style>TwoColumnsTopToBottom</style>
     </layoutSections>

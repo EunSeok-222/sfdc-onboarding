@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>CallbackError__c</fullName>
+    <description
+  >26-10-18 IF-004 회신이 전송실패일 때 사유(HTTP 상태 · 응답 오류 · 연결 실패). 전송완료면 비움. 결과 메시지(거절 사유)와 분리 by Kai</description>
+    <externalId>false</externalId>
+    <label>회신 오류</label>
+    <length>255</length>
+    <required>false</required>
+    <type>Text</type>
+    <unique>false</unique>
+</CustomField>

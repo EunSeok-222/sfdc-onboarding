@@ -12,6 +12,8 @@
  *  2026.10.12   Kai        Updated     createCorrectiveActions 추가 (D6 기한 초과 배치 테스트용)
  *  2026.10.14   Kai        Updated     createSvUser 이동 (InspectionTriggerHandlerTest → 공유, D8 runAs 테스트용)
  *  2026.10.14   Kai        Updated     createSupplyRestrictionPenalties 추가 (D8 물류 통보 콜아웃 테스트용)
+ *  2026.10.16   Kai        Updated     createRegionManagerUser 추가 (D10 승인 → 물류 통보 runAs 테스트용)
+ *  2026.10.17   Kai        Updated     createLogisticsNotifyLogs 추가 (D10 인터페이스 로그 Outbox 테스트용)
  * ======================================================================================
  *  @note        : @IsTest이므로 커버리지 분모에서 제외된다. doInsert = false면 insert 전 상태로
  *                 반환해 호출자가 필드를 더 손볼 수 있다 (벌크 테스트의 DML 1번 유지 목적)
@@ -27,12 +29,15 @@ public class TestDataFactory {
 
   /** 권한 매트릭스 V1.2의 SV 프로필 이름 */
   public static final String PROFILE_SV = '가맹점점검 SV';
+  /** 권한 매트릭스 V1.2의 권역팀장 프로필 이름 (페널티 승인자) */
+  public static final String PROFILE_REGION_MANAGER = '가맹점점검 권역팀장';
 
   // NOTE: InspectionNo__c는 Unique — 한 테스트에서 createInspections를 여러 번 불러도 겹치지 않게 호출 간 번호를 이어 간다
   private static Integer inspectionSeq = 0;
 
   // PERF: 사용자를 여러 명 만들어도 프로필 SOQL은 트랜잭션당 1번만 실행한다
   private static Id svProfileId;
+  private static Id regionManagerProfileId;
 
   /**
    * @description : 「가맹점점검 SV」 프로필 사용자를 생성한다. 테스트 안에서만 존재해 라이선스를 쓰지 않는다.
@@ -47,23 +52,63 @@ public class TestDataFactory {
     if (svProfileId == null) {
       svProfileId = [SELECT Id FROM Profile WHERE Name = :PROFILE_SV].Id;
     }
+    return newUser(svProfileId, 'tsv', 'test.sv', lastName, doInsert);
+  }
+
+  /**
+   * @description : 「가맹점점검 권역팀장」 프로필 사용자를 생성한다. 페널티 승인자(SV의 Manager)로 쓴다.
+   * @author      : 이은석(Kai) | 2026.10.16
+   * @note        : createSvUser와 같이 역할을 비워 Mixed DML을 피한다
+   * @param lastName  성 (테스트에서 사용자를 다시 찾을 때 키로 쓴다)
+   * @param doInsert  true면 insert까지 수행 (DML 1번)
+   * @return User
+   **/
+  public static User createRegionManagerUser(
+    String lastName,
+    Boolean doInsert
+  ) {
+    if (regionManagerProfileId == null) {
+      regionManagerProfileId = [
+        SELECT Id
+        FROM Profile
+        WHERE Name = :PROFILE_REGION_MANAGER
+      ]
+      .Id;
+    }
+    return newUser(
+      regionManagerProfileId,
+      'trm',
+      'test.rm',
+      lastName,
+      doInsert
+    );
+  }
+
+  // NOTE: 사용자명은 org 전체에서 유일해야 하므로 난수를 붙인다
+  private static User newUser(
+    Id profileId,
+    String alias,
+    String usernamePrefix,
+    String lastName,
+    Boolean doInsert
+  ) {
     String uniqueKey = String.valueOf(Crypto.getRandomInteger())
       .replace('-', '');
-    User sv = new User(
-      ProfileId = svProfileId,
+    User newUser = new User(
+      ProfileId = profileId,
       LastName = lastName,
-      Alias = 'tsv',
-      Email = 'test.sv@example.com',
-      Username = 'test.sv.' + uniqueKey + '@example.com',
+      Alias = alias,
+      Email = usernamePrefix + '@example.com',
+      Username = usernamePrefix + '.' + uniqueKey + '@example.com',
       TimeZoneSidKey = 'Asia/Seoul',
       LocaleSidKey = 'ko_KR',
       EmailEncodingKey = 'UTF-8',
       LanguageLocaleKey = 'ko'
     );
     if (doInsert) {
-      insert sv;
+      insert newUser;
     }
-    return sv;
+    return newUser;
   }
 
   // DESC: describe 기반이라 SOQL을 쓰지 않는다
@@ -285,5 +330,40 @@ public class TestDataFactory {
       insert penalties;
     }
     return penalties;
+  }
+
+  /**
+   * @description : 페널티마다 물류 통보(IF-001) 인터페이스 로그를 1건씩 만든다. 다음 시도 시각은 비워 바로 처리 대상이 된다.
+   * @author      : 이은석(Kai) | 2026.10.17
+   * @note        : 로그는 시스템 기록이라 실행 사용자 FLS와 무관하게 as system으로 넣는다(운영 코드와 같은 방식)
+   * @param penalties    대상 페널티 (저장된 것)
+   * @param status       로그 상태 (LogisticsNotifyService.LOG_STATUS_*)
+   * @param attemptCount 지금까지 보낸 횟수
+   * @param doInsert     true면 insert까지 수행 (DML 1번)
+   * @return List<IntegrationLog__c>
+   **/
+  public static List<IntegrationLog__c> createLogisticsNotifyLogs(
+    List<Penalty__c> penalties,
+    String status,
+    Integer attemptCount,
+    Boolean doInsert
+  ) {
+    List<IntegrationLog__c> logs = new List<IntegrationLog__c>();
+    for (Penalty__c penalty : penalties) {
+      logs.add(
+        new IntegrationLog__c(
+          Penalty__c = penalty.Id,
+          InterfaceId__c = LogisticsNotifyService.INTERFACE_ID,
+          Direction__c = LogisticsNotifyService.DIRECTION_OUTBOUND,
+          Status__c = status,
+          CorrelationId__c = penalty.Id,
+          AttemptCount__c = attemptCount
+        )
+      );
+    }
+    if (doInsert) {
+      insert as system logs;
+    }
+    return logs;
   }
 }

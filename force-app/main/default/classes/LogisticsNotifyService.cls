@@ -10,8 +10,10 @@
  *  2026.10.17   Kai        Updated     Outbox 처리 추가 — 승인 시 로그 · 이벤트만 남기고, 연동 사용자 Queueable이 전송 · 재시도
  *  2026.10.17   Kai        Updated     이벤트 발행 결과 확인 — 실패 사유를 로그 오류 메시지에 기록(승인은 막지 않음, Step 6 E2E 수정)
  *  2026.10.17   Kai        Updated     아웃박스 처리를 without sharing 내부 클래스로 분리 — 연동 사용자 0건 조회 수정(Step 6)
+ *  2026.10.18   Kai        Updated     로그 소유자 판정(findLogReaders) 공개 · 비활성 사용자 제외 — IF-004 수신 로그와 공유(Step 7-A)
  * ======================================================================================
- *  @see         : LogisticsNotifyQueueable.cls, LogisticsNotifyEventTriggerHandler.cls, 인터페이스 정의서 V1.1 IF-001
+ *  @see         : LogisticsNotifyQueueable.cls, LogisticsNotifyEventTriggerHandler.cls, LogisticsResultService.cls,
+ *                 인터페이스 정의서 V1.1 IF-001
  *  @note        : 원칙 — 승인된 페널티는 수정하지 않는다 · 외부 호출은 연동 사용자만 한다 · 모든 연동 상태는 인터페이스 로그에 남긴다.
  *                 승인 트랜잭션(승인자 권한)은 requestNotifications로 로그 「전송대기」와 이벤트만 남기고,
  *                 이벤트 트리거의 실행 사용자(연동 사용자)가 processPendingLogs로 전송 · 재시도한다
@@ -135,16 +137,24 @@ public with sharing class LogisticsNotifyService {
     );
   }
 
-  // DESC: 로그 오브젝트 읽기 권한(프로필 또는 권한 집합)이 있는 사용자만 고른다 — SOQL 1번, 대상 건수와 무관
-  // NOTE: 프로필 권한도 프로필 소유 권한 집합의 할당(PermissionSetAssignment)으로 잡힌다.
-  //       조회는 승인자가 설정 정보를 볼 권한이 없어도 되도록 시스템 모드
-  private static Set<Id> findLogReaders(Set<Id> userIds) {
+  /**
+   * @description : 로그 소유자 규칙(B안)의 판정. 로그 소유자가 될 수 있는 사용자 — 활성이고 로그 오브젝트 읽기 권한
+   *                (프로필 또는 권한 집합)이 있는 사용자만 고른다. 송신(IF-001) · 수신(IF-004) 로그가 함께 쓴다.
+   * @author      : 이은석(Kai) | 2026.10.17
+   * @note        : SOQL 1번, 대상 건수와 무관. 프로필 권한도 프로필 소유 권한 집합의 할당(PermissionSetAssignment)으로 잡힌다.
+   *                조회는 실행 사용자(승인자 · 연동 사용자)가 설정 정보를 볼 권한이 없어도 되도록 시스템 모드.
+   *                비활성 사용자는 소유자로 지정할 수 없어(INACTIVE_OWNER_OR_USER) 기록 전체가 실패하므로 뺀다
+   * @param userIds 후보 사용자 (페널티 소유자)
+   * @return Set<Id> 소유자로 지정해도 되는 사용자
+   **/
+  public static Set<Id> findLogReaders(Set<Id> userIds) {
     Set<Id> readerIds = new Set<Id>();
     for (PermissionSetAssignment assignment : [
       SELECT AssigneeId
       FROM PermissionSetAssignment
       WHERE
         AssigneeId IN :userIds
+        AND Assignee.IsActive = TRUE
         AND PermissionSetId IN (
           SELECT ParentId
           FROM ObjectPermissions

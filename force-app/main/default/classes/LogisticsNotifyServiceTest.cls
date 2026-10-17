@@ -7,6 +7,7 @@
  *  Date         Modifier   Status      Description
  * --------------------------------------------------------------------------------------
  *  2026.10.14   Kai        Created     최초 작성 — 201 · 503 · 404 · 429 · 시간 초과 · 입력 검증
+ *  2026.10.18   Kai        Updated     비활성 페널티 소유자 → 로그 기본 소유자 검증 추가(Step 7-A)
  * ======================================================================================
  *  @see         : LogisticsNotifyMock.cls
  *  @note        : Test.setMock은 Test.startTest() 앞에서 호출한다
@@ -145,6 +146,46 @@ private class LogisticsNotifyServiceTest {
       '거절 이유를 모두 알려줘야 한다. 실제: ' + caught.getMessage()
     );
     Assert.isNull(mock.lastRequest, '거절할 요청은 보내지 않아야 한다');
+  }
+
+  // 증명: 페널티 소유자가 비활성이면(퇴사 등) 로그 읽기 권한이 있어도 로그 소유자로 지정하지 않는다 —
+  //       지정하면 INACTIVE_OWNER_OR_USER로 승인 트랜잭션 전체가 실패한다
+  @IsTest
+  static void requestNotifications_inactiveOwner_keepsDefaultOwner() {
+    User owner = TestDataFactory.createSvUser('통보테스트퇴사SV', true);
+    // NOTE: 사용자 · 권한 집합(설정 개체) DML을 업무 데이터 DML과 분리해 Mixed DML을 피한다
+    System.runAs(new User(Id = UserInfo.getUserId())) {
+      insert new PermissionSetAssignment(
+        AssigneeId = owner.Id,
+        PermissionSetId = [
+          SELECT Id
+          FROM PermissionSet
+          WHERE Name = 'PenaltyLogisticsAccess'
+        ]
+        .Id
+      );
+    }
+    Penalty__c penalty = getPenalty();
+    penalty.OwnerId = owner.Id;
+    update penalty;
+    System.runAs(new User(Id = UserInfo.getUserId())) {
+      update new User(Id = owner.Id, IsActive = false);
+    }
+
+    // NOTE: Test.startTest/stopTest를 쓰지 않는다 — stopTest가 이벤트를 전달하면 Queueable 콜아웃까지 돈다.
+    //       이 테스트는 승인 트랜잭션의 로그 기록(소유자 판정)만 본다
+    LogisticsNotifyService.requestNotifications(
+      new List<Penalty__c>{
+        [SELECT Id, OwnerId FROM Penalty__c WHERE Id = :penalty.Id]
+      }
+    );
+
+    IntegrationLog__c log = [SELECT OwnerId FROM IntegrationLog__c];
+    Assert.areEqual(
+      UserInfo.getUserId(),
+      log.OwnerId,
+      '비활성 소유자 대신 기본 소유자(insert한 사용자)'
+    );
   }
 
   // NOTE: Assert.fail을 try 안에 두면 catch가 그 실패까지 삼킨다 → 결과를 변수로 받고 밖에서 검증한다

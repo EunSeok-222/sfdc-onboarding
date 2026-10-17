@@ -126,6 +126,15 @@ Excel로 열면 BOM이 없어서 한글이 깨져 보인다. 파일 내용 문�
 
 모든 점수는 `0 ≤ Score__c ≤ MaxScore__c` 범위이므로 `ScoreWithinMaxScore`를 통과한다.
 
+> **2026.10.18 변경 (D1 점검표 재구성)** — 미흡 기준을 하나로 맞췄다.
+>
+> - `IsDeficient__c`는 이제 결과 항목 트리거가 계산한다: **점수 < 배점 × 항목 미흡 기준**
+>   (`InspectionRule__mdt` Default의 `DeficiencyRate__c` = 0.6). CSV의 `IsDeficient__c` 값은 저장 시 덮어쓴다.
+>   위 표의 「배점의 60%」와 같은 기준이라 이 CSV의 판정 결과는 바뀌지 않는다.
+> - `TemplateItem__c`가 있는 행은 insert 때 템플릿의 항목명 · 분류 · 배점 · 필수로 스냅샷을 덮어쓴다(BR-11).
+>   위 4항목은 새 점검표(20항목 · 100점) 도입으로 **비활성(사용 중 = false)**이지만, 조회 필드가 Restrict라
+>   이 CSV는 그대로 적재된다. 새 점검표 항목은 `scripts/apex/inspectionTemplateReplace.apex` 참고.
+
 ## 4. 적재 후 확인
 
 ```sql

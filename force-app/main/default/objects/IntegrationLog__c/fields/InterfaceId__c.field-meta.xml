@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>InterfaceId__c</fullName>
+    <description>26-10-17 인터페이스 정의서의 IF ID by Kai</description>
+    <label>IF ID</label>
+    <required>false</required>
+    <type>Picklist</type>
+    <valueSet>
+        <restricted>true</restricted>
+        <valueSetDefinition>
+            <sorted>false</sorted>
+            <value><fullName>IF-001</fullName><default>false</default><label
+        >IF-001</label></value>
+            <value><fullName>IF-004</fullName><default>false</default><label
+        >IF-004</label></value>
+        </valueSetDefinition>
+    </valueSet>
+</CustomField>

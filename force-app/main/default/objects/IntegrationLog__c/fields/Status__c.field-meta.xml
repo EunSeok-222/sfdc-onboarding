@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Status__c</fullName>
+    <description
+  >26-10-17 전송대기 → 성공 / 재시도대기(최대 3회) → 중단 / 재시도 불가는 실패 by Kai</description>
+    <label>상태</label>
+    <required>false</required>
+    <type>Picklist</type>
+    <valueSet>
+        <restricted>true</restricted>
+        <valueSetDefinition>
+            <sorted>false</sorted>
+            <value><fullName>전송대기</fullName><default>false</default><label
+        >전송대기</label></value>
+            <value><fullName>성공</fullName><default>false</default><label
+        >성공</label></value>
+            <value><fullName>재시도대기</fullName><default>false</default><label
+        >재시도대기</label></value>
+            <value><fullName>실패</fullName><default>false</default><label
+        >실패</label></value>
+            <value><fullName>중단</fullName><default>false</default><label
+        >중단</label></value>
+        </valueSetDefinition>
+    </valueSet>
+</CustomField>

@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<CustomObject xmlns="http://soap.sforce.com/2006/04/metadata">
+    <deploymentStatus>Deployed</deploymentStatus>
+    <description
+  >26-10-17 연동(IF-001 · IF-004) 송수신 상태 기록(Outbox). 헤더 · 토큰은 기록하지 않음. 소유자 = 페널티 소유자 by Kai</description>
+    <enableActivities>false</enableActivities>
+    <enableBulkApi>true</enableBulkApi>
+    <enableFeeds>false</enableFeeds>
+    <enableHistory>false</enableHistory>
+    <enableReports>true</enableReports>
+    <enableSearch>true</enableSearch>
+    <enableSharing>true</enableSharing>
+    <enableStreamingApi>true</enableStreamingApi>
+    <externalSharingModel>Private</externalSharingModel>
+    <label>인터페이스 로그</label>
+    <nameField>
+        <displayFormat>LOG-{000000}</displayFormat>
+        <label>로그 번호</label>
+        <type>AutoNumber</type>
+    </nameField>
+    <pluralLabel>인터페이스 로그</pluralLabel>
+    <sharingModel>Private</sharingModel>
+    <visibility>Public</visibility>
+</CustomObject>

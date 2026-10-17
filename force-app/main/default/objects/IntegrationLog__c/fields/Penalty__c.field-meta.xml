@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Penalty__c</fullName>
+    <deleteConstraint>SetNull</deleteConstraint>
+    <description
+  >26-10-17 대상 페널티. 페널티가 삭제돼도 로그는 남김(SetNull) by Kai</description>
+    <label>페널티</label>
+    <referenceTo>Penalty__c</referenceTo>
+    <relationshipLabel>인터페이스 로그</relationshipLabel>
+    <relationshipName>PenaltyIntegrationLogs</relationshipName>
+    <required>false</required>
+    <type>Lookup</type>
+</CustomField>

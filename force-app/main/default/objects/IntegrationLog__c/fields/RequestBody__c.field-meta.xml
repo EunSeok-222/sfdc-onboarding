@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>RequestBody__c</fullName>
+    <description
+  >26-10-17 보낸 JSON 본문만(헤더 · 토큰 기록 금지) by Kai</description>
+    <label>요청 본문</label>
+    <length>32768</length>
+    <type>LongTextArea</type>
+    <visibleLines>5</visibleLines>
+</CustomField>

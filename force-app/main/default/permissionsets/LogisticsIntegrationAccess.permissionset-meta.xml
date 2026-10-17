@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <PermissionSet xmlns="http://soap.sforce.com/2006/04/metadata">
     <description
-  >26-10-14 물류 시스템(HankkiLogistics) 공급 제한 통보 콜아웃 주체 접근 by Kai</description>
+  >26-10-14 물류 시스템(HankkiLogistics) 공급 제한 통보 콜아웃 주체 접근 by Kai / 26-10-17 User External Credential 읽기 추가(관리자가 아닌 연동 사용자가 Named Credential 콜아웃할 때 필요) by Kai</description>
     <externalCredentialPrincipalAccesses>
         <enabled>true</enabled>
         <externalCredentialPrincipal
@@ -14,4 +14,13 @@
     </externalCredentialPrincipalAccesses>
     <hasActivationRequired>false</hasActivationRequired>
     <label>물류 연동</label>
+    <objectPermissions>
+        <allowCreate>false</allowCreate>
+        <allowDelete>false</allowDelete>
+        <allowEdit>false</allowEdit>
+        <allowRead>true</allowRead>
+        <modifyAllRecords>false</modifyAllRecords>
+        <object>UserExternalCredential</object>
+        <viewAllRecords>false</viewAllRecords>
+    </objectPermissions>
 </PermissionSet>

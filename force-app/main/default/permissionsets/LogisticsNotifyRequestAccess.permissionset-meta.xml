@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<PermissionSet xmlns="http://soap.sforce.com/2006/04/metadata">
+    <description
+  >26-10-17 페널티 승인 시 물류 통보 이벤트(LogisticsNotifyEvent__e) 발행 권한(Create는 Read 필요). 승인자(권역팀장)용 — EventBus.publish는 실행 사용자 권한으로 검사됨 by Kai</description>
+    <hasActivationRequired>false</hasActivationRequired>
+    <label>물류 통보 요청</label>
+    <objectPermissions>
+        <allowCreate>true</allowCreate>
+        <allowDelete>false</allowDelete>
+        <allowEdit>false</allowEdit>
+        <allowRead>true</allowRead>
+        <modifyAllRecords>false</modifyAllRecords>
+        <object>LogisticsNotifyEvent__e</object>
+        <viewAllRecords>false</viewAllRecords>
+    </objectPermissions>
+</PermissionSet>

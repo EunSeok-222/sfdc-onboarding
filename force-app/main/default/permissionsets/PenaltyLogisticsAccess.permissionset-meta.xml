@@ -1,7 +1,12 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <PermissionSet xmlns="http://soap.sforce.com/2006/04/metadata">
     <description
-  >26-10-17 인터페이스 로그 읽기 전용(생성 · 갱신은 시스템 모드). SV · 권역팀장 · 관리자. 레코드 범위는 로그 소유자(= 페널티 소유자) by Kai</description>
+  >26-10-17 인터페이스 로그 읽기 전용(생성 · 갱신은 시스템 모드). SV · 권역팀장 · 관리자. 레코드 범위는 로그 소유자(= 페널티 소유자) by Kai / 26-10-18 반영 결과(IF-004) 읽기 추가 by Kai</description>
+    <fieldPermissions>
+        <editable>false</editable>
+        <field>IntegrationLog__c.ApplyResult__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
     <fieldPermissions>
         <editable>false</editable>
         <field>IntegrationLog__c.AttemptCount__c</field>

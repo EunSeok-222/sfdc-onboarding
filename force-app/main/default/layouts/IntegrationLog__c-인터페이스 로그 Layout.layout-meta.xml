@@ -34,6 +34,10 @@
             </layoutItems>
             <layoutItems>
                 <behavior>Readonly</behavior>
+                <field>ApplyResult__c</field>
+            </layoutItems>
+            <layoutItems>
+                <behavior>Readonly</behavior>
                 <field>AttemptCount__c</field>
             </layoutItems>
             <layoutItems>

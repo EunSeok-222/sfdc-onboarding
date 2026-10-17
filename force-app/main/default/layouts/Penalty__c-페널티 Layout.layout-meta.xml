@@ -90,6 +90,7 @@
         <fields>NAME</fields>
         <fields>InterfaceId__c</fields>
         <fields>Status__c</fields>
+        <fields>ApplyResult__c</fields>
         <fields>AttemptCount__c</fields>
         <fields>RequestNo__c</fields>
         <fields>CREATED_DATE</fields>

@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<ListView xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>InProgressInspections</fullName>
+    <columns>NAME</columns>
+    <columns>InspectionNo__c</columns>
+    <columns>Franchise__c</columns>
+    <columns>InspectionDate__c</columns>
+    <columns>Status__c</columns>
+    <columns>Judgement__c</columns>
+    <columns>ruTotalScore__c</columns>
+    <columns>ruDeficientRequiredCount__c</columns>
+    <filterScope>Everything</filterScope>
+    <filters>
+        <field>Status__c</field>
+        <operation>notEqual</operation>
+        <value>종료</value>
+    </filters>
+    <label>진행 중 점검</label>
+</ListView>

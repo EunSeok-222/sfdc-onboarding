@@ -8,6 +8,8 @@
  * --------------------------------------------------------------------------------------
  *  2026.10.14   Kai        Created     최초 작성 — 통보 요청 · 상태코드별 재시도 분기 (호출부 연결 없는 스텁)
  *  2026.10.17   Kai        Updated     Outbox 처리 추가 — 승인 시 로그 · 이벤트만 남기고, 연동 사용자 Queueable이 전송 · 재시도
+ *  2026.10.17   Kai        Updated     이벤트 발행 결과 확인 — 실패 사유를 로그 오류 메시지에 기록(승인은 막지 않음, Step 6 E2E 수정)
+ *  2026.10.17   Kai        Updated     아웃박스 처리를 without sharing 내부 클래스로 분리 — 연동 사용자 0건 조회 수정(Step 6)
  * ======================================================================================
  *  @see         : LogisticsNotifyQueueable.cls, LogisticsNotifyEventTriggerHandler.cls, 인터페이스 정의서 V1.1 IF-001
  *  @note        : 원칙 — 승인된 페널티는 수정하지 않는다 · 외부 호출은 연동 사용자만 한다 · 모든 연동 상태는 인터페이스 로그에 남긴다.
@@ -85,6 +87,16 @@ public with sharing class LogisticsNotifyService {
       ownerIds.add(penalty.OwnerId);
     }
     Set<Id> logReaderIds = findLogReaders(ownerIds);
+    // DESC: 커밋 후 발행(PublishAfterCommit) — 승인이 롤백되면 이벤트도 나가지 않는다. 건수와 무관하게 1건이면 된다.
+    //       발행을 로그 insert보다 먼저 해 실패 사유까지 담아 DML 1번으로 끝낸다(커밋 후 발행이라 순서와 무관하게 함께 반영)
+    // WARN: 발행은 실행 사용자(승인자) 권한으로 검사된다 — 이벤트 Create 권한(권한 집합 「물류 통보 요청」)이 없으면
+    //       예외 없이 SaveResult로만 실패한다(Access to entity denied). EventBus.publish에는 접근 모드 인자가 없고(두 번째 인자는
+    //       콜백) DML insert로도 발행할 수 없다. 실패는 로그 오류 메시지에 남기고 승인은 막지 않는다 — 깨우기 스크립트로 재처리
+    String publishError = publishFailure(
+      EventBus.publish(
+        new LogisticsNotifyEvent__e(InterfaceId__c = INTERFACE_ID)
+      )
+    );
     List<IntegrationLog__c> logs = new List<IntegrationLog__c>();
     for (Penalty__c penalty : penalties) {
       IntegrationLog__c log = new IntegrationLog__c(
@@ -93,7 +105,8 @@ public with sharing class LogisticsNotifyService {
         Direction__c = DIRECTION_OUTBOUND,
         Status__c = LOG_STATUS_PENDING,
         CorrelationId__c = penalty.Id,
-        AttemptCount__c = 0
+        AttemptCount__c = 0,
+        ErrorMessage__c = publishError
       );
       // NOTE: 로그 소유자 = 페널티 소유자 — OWD 비공개에서 SV는 자기 건, 권역팀장은 역할 계층으로 본다
       // WARN: 소유자는 로그 읽기 권한이 있어야 한다(TRANSFER_REQUIRES_READ). 권한 없는 사람을 소유자로 지정하면
@@ -105,9 +118,20 @@ public with sharing class LogisticsNotifyService {
     }
     // WARN: 로그는 사용자 행위가 아니라 시스템 기록이다 — 승인자에게 로그 생성 권한이 없어도 남도록 as system
     insert as system logs;
-    // DESC: 커밋 후 발행(PublishAfterCommit) — 승인이 롤백되면 이벤트도 나가지 않는다. 건수와 무관하게 1건이면 된다
-    EventBus.publish(
-      new LogisticsNotifyEvent__e(InterfaceId__c = INTERFACE_ID)
+  }
+
+  // DESC: 발행 성공이면 null, 실패면 로그에 남길 「이벤트 발행 실패: 상태코드 메시지」
+  private static String publishFailure(Database.SaveResult result) {
+    if (result.isSuccess()) {
+      return null;
+    }
+    List<String> errors = new List<String>();
+    for (Database.Error error : result.getErrors()) {
+      errors.add(error.getStatusCode() + ' ' + error.getMessage());
+    }
+    return truncate(
+      '이벤트 발행 실패: ' + String.join(errors, ' / '),
+      MESSAGE_MAX_LENGTH
     );
   }
 
@@ -141,29 +165,8 @@ public with sharing class LogisticsNotifyService {
    **/
   public static ProcessResult processPendingLogs() {
     Datetime now = Datetime.now();
-    Integer fetchSize = BATCH_SIZE + 1;
-    // NOTE: 시스템 모드 — 로그 · 페널티 조회는 실행 사용자 FLS와 무관한 시스템 책임이다
-    List<IntegrationLog__c> dueLogs = [
-      SELECT
-        Id,
-        AttemptCount__c,
-        Penalty__r.Id,
-        Penalty__r.PenaltyType__c,
-        Penalty__r.Status__c,
-        Penalty__r.StartDate__c,
-        Penalty__r.EndDate__c,
-        Penalty__r.Reason__c,
-        Penalty__r.Franchise__r.StoreCode__c
-      FROM IntegrationLog__c
-      WHERE
-        InterfaceId__c = :INTERFACE_ID
-        AND Status__c IN :DUE_STATUSES
-        AND (NextAttemptAt__c = NULL
-        OR NextAttemptAt__c <= :now)
-      WITH SYSTEM_MODE
-      ORDER BY CreatedDate
-      LIMIT :fetchSize
-    ];
+    OutboxStore store = new OutboxStore();
+    List<IntegrationLog__c> dueLogs = store.findDueLogs(now, BATCH_SIZE + 1);
 
     ProcessResult result = new ProcessResult();
     result.hasMoreDue = dueLogs.size() > BATCH_SIZE;
@@ -175,9 +178,8 @@ public with sharing class LogisticsNotifyService {
       applyAttempt(log, now);
       batch.add(log);
     }
-    // WARN: 결과 기록도 시스템 책임 — 실행 사용자(연동 사용자)의 로그 FLS와 무관하게 as system
-    update as system batch;
-    result.nextRetryAt = findNextRetryAt(now);
+    store.saveResults(batch);
+    result.nextRetryAt = store.findNextRetryAt(now);
     return result;
   }
 
@@ -234,20 +236,60 @@ public with sharing class LogisticsNotifyService {
     log.NextAttemptAt__c = null;
   }
 
-  // DESC: 이번 실행 뒤 남은 재시도 중 가장 이른 시각 — Queueable이 그때 다시 돌도록 지연 job을 넣는다
-  private static Datetime findNextRetryAt(Datetime now) {
-    List<IntegrationLog__c> waitingLogs = [
-      SELECT NextAttemptAt__c
-      FROM IntegrationLog__c
-      WHERE
-        InterfaceId__c = :INTERFACE_ID
-        AND Status__c = :LOG_STATUS_RETRY
-        AND NextAttemptAt__c > :now
-      WITH SYSTEM_MODE
-      ORDER BY NextAttemptAt__c
-      LIMIT 1
-    ];
-    return waitingLogs.isEmpty() ? null : waitingLogs[0].NextAttemptAt__c;
+  // WARN: 아웃박스 처리(대기 로그 조회 · 결과 기록 · 재시도 시각 조회)만 sharing 예외(without sharing)다.
+  //       시스템 작업이라 실행 사용자(연동 사용자)는 콜아웃 주체 · 감사 기록용일 뿐, 처리 대상 로그와 그 페널티는 소유자와
+  //       무관하게 모두 봐야 한다. with sharing이면 역할 · 공유가 없는 연동 사용자가 다른 사람 소유 로그를 0건으로 조회한다
+  //       (D11 Step 6 실측 — WITH SYSTEM_MODE는 CRUD · FLS만 무시하고 레코드 공유는 클래스 sharing을 따른다).
+  //       범위: IntegrationLog__c 조회 · 갱신과 페이로드에 필요한 Penalty__r 필드만. 다른 로직은 넣지 않는다
+  // NOTE: 내부 클래스는 바깥 클래스의 sharing을 물려받지 않으므로 without sharing을 명시한다
+  private without sharing class OutboxStore {
+    public List<IntegrationLog__c> findDueLogs(
+      Datetime now,
+      Integer fetchSize
+    ) {
+      return [
+        SELECT
+          Id,
+          AttemptCount__c,
+          Penalty__r.Id,
+          Penalty__r.PenaltyType__c,
+          Penalty__r.Status__c,
+          Penalty__r.StartDate__c,
+          Penalty__r.EndDate__c,
+          Penalty__r.Reason__c,
+          Penalty__r.Franchise__r.StoreCode__c
+        FROM IntegrationLog__c
+        WHERE
+          InterfaceId__c = :INTERFACE_ID
+          AND Status__c IN :DUE_STATUSES
+          AND (NextAttemptAt__c = NULL
+          OR NextAttemptAt__c <= :now)
+        WITH SYSTEM_MODE
+        ORDER BY CreatedDate
+        LIMIT :fetchSize
+      ];
+    }
+
+    // DESC: 결과 기록도 시스템 책임 — 실행 사용자(연동 사용자)의 로그 FLS와 무관하게 as system
+    public void saveResults(List<IntegrationLog__c> logs) {
+      update as system logs;
+    }
+
+    // DESC: 이번 실행 뒤 남은 재시도 중 가장 이른 시각 — Queueable이 그때 다시 돌도록 지연 job을 넣는다
+    public Datetime findNextRetryAt(Datetime now) {
+      List<IntegrationLog__c> waitingLogs = [
+        SELECT NextAttemptAt__c
+        FROM IntegrationLog__c
+        WHERE
+          InterfaceId__c = :INTERFACE_ID
+          AND Status__c = :LOG_STATUS_RETRY
+          AND NextAttemptAt__c > :now
+        WITH SYSTEM_MODE
+        ORDER BY NextAttemptAt__c
+        LIMIT 1
+      ];
+      return waitingLogs.isEmpty() ? null : waitingLogs[0].NextAttemptAt__c;
+    }
   }
 
   /**

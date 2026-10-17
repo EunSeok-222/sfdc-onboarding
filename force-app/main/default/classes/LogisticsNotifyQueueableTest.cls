@@ -9,6 +9,8 @@
  * --------------------------------------------------------------------------------------
  *  2026.10.16   Kai        Created     최초 작성 — 201 · 503 · 404 · 3회 초과 · 10건 초과, 실제 승인 후 권역팀장 runAs
  *  2026.10.17   Kai        Updated     로그 소유자 규칙 두 경우(SV 읽기 권한 유무) · 큐 밖 실행 시 다음 job · 지연 job 추가
+ *  2026.10.17   Kai        Updated     승인 시나리오 재구성 — 권한 있음(이벤트 전달 → 전송 성공) / 없음(발행 실패 기록) (Step 6 E2E 수정)
+ *  2026.10.17   Kai        Updated     연동 사용자(소유자 아님 · 역할 없음) runAs로 다른 사람 소유 로그 처리 검증 추가
  * ======================================================================================
  *  @see         : LogisticsNotifyMock.cls, Penalty__c.Penalty_Approval
  *  @note        : 처리는 이벤트 전달(Test.getEventBus().deliver()) → 이벤트 트리거 → Queueable(Test.stopTest()) 순서로 돈다.
@@ -226,29 +228,95 @@ private class LogisticsNotifyQueueableTest {
     );
   }
 
-  // 증명: 실제 승인(제출 → 권역팀장 승인)은 「물류 연동」 없이도 성공하고, 승인자 컨텍스트에서는 콜아웃 없이
-  //       로그 「전송대기」 1건만 남는다. 승인된 페널티 값은 바뀌지 않고, 로그 소유자는 페널티 소유자(SV)다
+  // 증명: 실행 사용자(연동 사용자 프로필, 역할 없음)가 로그 · 페널티의 소유자가 아니어도 대기 로그를 찾아 보낸다
+  //       — 아웃박스 처리는 레코드 공유와 무관해야 한다(D11 Step 6: with sharing이라 연동 사용자 조회가 0건)
   @IsTest
-  static void approvedByRegionManager_svCanReadLogs_logOwnedBySv() {
-    ApprovalOutcome outcome = approveAsRegionManager(true);
+  static void processAsIntegrationUser_logsOwnedByOthers_areSent() {
+    User integrationUser = TestDataFactory.createIntegrationUser(
+      '아웃박스테스트연동',
+      true
+    );
+    // DESC: 로그 · 페널티 · 가맹점은 실행 중인 테스트 사용자 소유 — 연동 사용자에게는 공유 경로가 없다
+    insertPendingLogs(1, LogisticsNotifyService.LOG_STATUS_PENDING, 0);
+    Test.setMock(
+      HttpCalloutMock.class,
+      new LogisticsNotifyMock(201, CREATED_BODY)
+    );
+
+    Test.startTest();
+    System.runAs(integrationUser) {
+      new LogisticsNotifyQueueable().execute(null);
+    }
+    Test.stopTest();
+
+    IntegrationLog__c log = getOnlyLog();
+    Assert.areEqual(
+      LogisticsNotifyService.LOG_STATUS_SUCCESS,
+      log.Status__c,
+      '소유자가 아니어도 연동 사용자가 대기 로그를 보내야 한다(0건 조회면 전송대기로 남는다)'
+    );
+    Assert.areEqual(REQUEST_NO, log.RequestNo__c, '접수번호 기록');
+    Assert.areEqual(1, log.AttemptCount__c, '시도 1회');
+  }
+
+  // 증명: 권역팀장(「물류 통보 요청」 있음)이 승인하면 승인 컨텍스트에서는 콜아웃 없이 로그만 남고, 이벤트가 전달되면
+  //       Queueable이 그 로그를 보낸다(성공 · 접수번호). 로그 소유자는 페널티 소유자(SV) — Step 6 E2E 자동 경로 그대로
+  @IsTest
+  static void approvedByRegionManager_withPermissions_eventDeliveredAndLogSent() {
+    ApprovalOutcome outcome = prepareApproval(true, true);
+    Test.setMock(
+      HttpCalloutMock.class,
+      new LogisticsNotifyMock(201, CREATED_BODY)
+    );
+
+    Test.startTest();
+    approve(outcome);
+    Test.getEventBus().deliver();
+    Test.stopTest();
 
     assertApprovedWithoutCallout(outcome);
+    IntegrationLog__c log = getOnlyLog();
+    Assert.isNull(
+      log.ErrorMessage__c,
+      '발행 권한이 있으면 발행 실패 기록이 없다'
+    );
+    Assert.areEqual(
+      LogisticsNotifyService.LOG_STATUS_SUCCESS,
+      log.Status__c,
+      '이벤트 전달 → Queueable이 로그를 보낸다'
+    );
+    Assert.areEqual(REQUEST_NO, log.RequestNo__c, '접수번호 기록');
     Assert.areEqual(
       outcome.sv.Id,
-      getOnlyLog().OwnerId,
+      log.OwnerId,
       '로그 읽기 권한이 있는 페널티 소유자(SV)가 로그 소유자'
     );
   }
 
-  // 증명: 페널티 소유자에게 로그 읽기 권한이 없어도 승인은 막히지 않고, 로그는 기본 소유자(승인자)로 남는다
+  // 증명: 권역팀장에게 이벤트 발행 권한이 없으면 발행은 SaveResult로만 실패한다 — 승인은 막히지 않고, 로그는
+  //       전송대기로 남아 오류 메시지에 발행 실패가 기록된다. 페널티 소유자가 로그를 못 읽으면 소유자는 승인자
   @IsTest
-  static void approvedByRegionManager_svCannotReadLogs_approvalNotBlocked() {
-    ApprovalOutcome outcome = approveAsRegionManager(false);
+  static void approvedByRegionManager_withoutPermissions_recordsPublishFailure() {
+    ApprovalOutcome outcome = prepareApproval(false, false);
+
+    approve(outcome);
 
     assertApprovedWithoutCallout(outcome);
+    IntegrationLog__c log = getOnlyLog();
+    Assert.areEqual(
+      LogisticsNotifyService.LOG_STATUS_PENDING,
+      log.Status__c,
+      '발행이 실패해도 로그는 전송대기로 남아 재처리할 수 있다'
+    );
+    Assert.isTrue(
+      log.ErrorMessage__c != null &&
+        log.ErrorMessage__c.startsWith('이벤트 발행 실패') &&
+        log.ErrorMessage__c.contains('LogisticsNotifyEvent__e'),
+      '발행 실패 사유를 로그에 남긴다. 실제: ' + log.ErrorMessage__c
+    );
     Assert.areEqual(
       outcome.regionManager.Id,
-      getOnlyLog().OwnerId,
+      log.OwnerId,
       '소유자로 넘길 수 없으면(TRANSFER_REQUIRES_READ) insert한 사용자(승인자)가 소유자'
     );
   }
@@ -264,10 +332,14 @@ private class LogisticsNotifyQueueableTest {
     Integer calloutsInApproval;
   }
 
-  // DESC: SV 소유 공급 제한 페널티를 SV가 제출하고, SV의 Manager(권역팀장)가 승인한다 — Approval Process 「페널티 승인」 그대로
-  // NOTE: Test.startTest/stopTest를 쓰지 않는다 — 쓰면 커밋 후 발행 이벤트가 전달돼 연동 처리까지 돌기 때문.
-  //       이 시나리오는 승인자 컨텍스트만 본다
-  private static ApprovalOutcome approveAsRegionManager(Boolean svCanReadLogs) {
+  // DESC: SV 소유 공급 제한 페널티를 SV가 제출해 둔다(승인 대기). 승인은 approve()가 SV의 Manager(권역팀장)로 한다
+  //       — Approval Process 「페널티 승인」 그대로
+  // NOTE: 이벤트를 전달할 테스트만 approve()를 Test.startTest/stopTest로 감싼다. 감싸지 않으면 커밋 후 발행 이벤트가
+  //       전달되지 않아 승인자 컨텍스트만 본다
+  private static ApprovalOutcome prepareApproval(
+    Boolean svCanReadLogs,
+    Boolean regionManagerCanPublish
+  ) {
     ApprovalOutcome outcome = new ApprovalOutcome();
     User regionManager = TestDataFactory.createRegionManagerUser(
       '승인테스트팀장',
@@ -293,18 +365,18 @@ private class LogisticsNotifyQueueableTest {
       insert regionManager;
       sv.ManagerId = regionManager.Id;
       insert sv;
+      // DESC: 실제 org처럼 SV에게 「인터페이스 로그 조회」, 권역팀장에게 「물류 통보 요청」을 준다
+      //       — 권한 집합 할당도 설정 DML이라 이 블록 안에서
+      List<PermissionSetAssignment> assignments = new List<PermissionSetAssignment>();
       if (svCanReadLogs) {
-        // DESC: 실제 org처럼 SV에게 「인터페이스 로그 조회」를 준다 — 권한 집합 할당도 설정 DML이라 이 블록 안에서
-        insert new PermissionSetAssignment(
-          AssigneeId = sv.Id,
-          PermissionSetId = [
-            SELECT Id
-            FROM PermissionSet
-            WHERE Name = 'PenaltyLogisticsAccess'
-          ]
-          .Id
+        assignments.add(assignmentOf(sv.Id, 'PenaltyLogisticsAccess'));
+      }
+      if (regionManagerCanPublish) {
+        assignments.add(
+          assignmentOf(regionManager.Id, 'LogisticsNotifyRequestAccess')
         );
       }
+      insert assignments;
     }
     // NOTE: 담당 매장은 SV 소유 — 관리자 소유 가맹점이면 SV가 제출할 때 참조 레코드 접근 권한이 없어 막힌다
     List<Account> franchises = TestDataFactory.createFranchises(1, false);
@@ -323,33 +395,48 @@ private class LogisticsNotifyQueueableTest {
       submit.setObjectId(penalty.Id);
       Approval.process(submit);
     }
-    outcome.before = getPenalty(penalty.Id);
-
-    Integer calloutsInApproval;
-    System.runAs(regionManager) {
-      ProcessInstanceWorkitem workItem = [
-        SELECT Id
-        FROM ProcessInstanceWorkitem
-        WHERE ProcessInstance.TargetObjectId = :penalty.Id
-        WITH SYSTEM_MODE
-      ];
-      Approval.ProcessWorkitemRequest approve = new Approval.ProcessWorkitemRequest();
-      approve.setWorkitemId(workItem.Id);
-      approve.setAction('Approve');
-      Approval.ProcessResult result = Approval.process(approve);
-      Assert.isTrue(result.isSuccess(), '「물류 연동」이 없어도 승인돼야 한다');
-      calloutsInApproval = Limits.getCallouts();
-    }
-
     outcome.sv = sv;
     outcome.regionManager = regionManager;
     outcome.penaltyId = penalty.Id;
-    outcome.after = getPenalty(penalty.Id);
-    outcome.calloutsInApproval = calloutsInApproval;
+    outcome.before = getPenalty(penalty.Id);
     return outcome;
   }
 
-  // DESC: 두 승인 시나리오의 공통 검증 — 콜아웃 0건 · 승인 상태 · 페널티 값 그대로 · 로그 전송대기 1건 · 상관 ID
+  // DESC: 권역팀장으로 승인한다. 승인자에게는 「물류 연동」이 없다 — 승인자는 외부 호출을 하지 않는다
+  private static void approve(ApprovalOutcome outcome) {
+    System.runAs(outcome.regionManager) {
+      ProcessInstanceWorkitem workItem = [
+        SELECT Id
+        FROM ProcessInstanceWorkitem
+        WHERE ProcessInstance.TargetObjectId = :outcome.penaltyId
+        WITH SYSTEM_MODE
+      ];
+      Approval.ProcessWorkitemRequest request = new Approval.ProcessWorkitemRequest();
+      request.setWorkitemId(workItem.Id);
+      request.setAction('Approve');
+      Approval.ProcessResult result = Approval.process(request);
+      Assert.isTrue(result.isSuccess(), '「물류 연동」이 없어도 승인돼야 한다');
+      outcome.calloutsInApproval = Limits.getCallouts();
+    }
+    outcome.after = getPenalty(outcome.penaltyId);
+  }
+
+  private static PermissionSetAssignment assignmentOf(
+    Id userId,
+    String permissionSetName
+  ) {
+    return new PermissionSetAssignment(
+      AssigneeId = userId,
+      PermissionSetId = [
+        SELECT Id
+        FROM PermissionSet
+        WHERE Name = :permissionSetName
+      ]
+      .Id
+    );
+  }
+
+  // DESC: 두 승인 시나리오의 공통 검증 — 승인 컨텍스트 콜아웃 0건 · 승인 상태 · 페널티 값 그대로 · 로그 1건 · 상관 ID
   private static void assertApprovedWithoutCallout(ApprovalOutcome outcome) {
     Assert.areEqual(
       0,
@@ -381,16 +468,10 @@ private class LogisticsNotifyQueueableTest {
       outcome.after.OwnerId,
       '소유자 그대로'
     );
-    IntegrationLog__c log = getOnlyLog();
-    Assert.areEqual(
-      LogisticsNotifyService.LOG_STATUS_PENDING,
-      log.Status__c,
-      '승인 직후 로그는 전송대기 1건'
-    );
     Assert.areEqual(
       String.valueOf(outcome.penaltyId),
-      log.CorrelationId__c,
-      '상관 ID = 페널티 Id'
+      getOnlyLog().CorrelationId__c,
+      '승인된 페널티마다 로그 1건, 상관 ID = 페널티 Id'
     );
   }
 

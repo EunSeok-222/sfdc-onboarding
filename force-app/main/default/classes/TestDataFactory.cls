@@ -14,6 +14,7 @@
  *  2026.10.14   Kai        Updated     createSupplyRestrictionPenalties 추가 (D8 물류 통보 콜아웃 테스트용)
  *  2026.10.16   Kai        Updated     createRegionManagerUser 추가 (D10 승인 → 물류 통보 runAs 테스트용)
  *  2026.10.17   Kai        Updated     createLogisticsNotifyLogs 추가 (D10 인터페이스 로그 Outbox 테스트용)
+ *  2026.10.17   Kai        Updated     createIntegrationUser 추가 (D11 연동 사용자 권한 아웃박스 처리 테스트용)
  * ======================================================================================
  *  @note        : @IsTest이므로 커버리지 분모에서 제외된다. doInsert = false면 insert 전 상태로
  *                 반환해 호출자가 필드를 더 손볼 수 있다 (벌크 테스트의 DML 1번 유지 목적)
@@ -31,6 +32,8 @@ public class TestDataFactory {
   public static final String PROFILE_SV = '가맹점점검 SV';
   /** 권한 매트릭스 V1.2의 권역팀장 프로필 이름 (페널티 승인자) */
   public static final String PROFILE_REGION_MANAGER = '가맹점점검 권역팀장';
+  /** 연동 사용자 프로필 (Salesforce Integration 라이선스) */
+  public static final String PROFILE_INTEGRATION = 'Minimum Access - API Only Integrations';
 
   // NOTE: InspectionNo__c는 Unique — 한 테스트에서 createInspections를 여러 번 불러도 겹치지 않게 호출 간 번호를 이어 간다
   private static Integer inspectionSeq = 0;
@@ -38,6 +41,7 @@ public class TestDataFactory {
   // PERF: 사용자를 여러 명 만들어도 프로필 SOQL은 트랜잭션당 1번만 실행한다
   private static Id svProfileId;
   private static Id regionManagerProfileId;
+  private static Id integrationProfileId;
 
   /**
    * @description : 「가맹점점검 SV」 프로필 사용자를 생성한다. 테스트 안에서만 존재해 라이선스를 쓰지 않는다.
@@ -79,6 +83,33 @@ public class TestDataFactory {
       regionManagerProfileId,
       'trm',
       'test.rm',
+      lastName,
+      doInsert
+    );
+  }
+
+  /**
+   * @description : 연동 사용자와 같은 「Minimum Access - API Only Integrations」 프로필 사용자를 생성한다.
+   *                역할 · 공유 경로가 없는 실행 사용자로 아웃박스 처리를 검증할 때 쓴다.
+   * @author      : 이은석(Kai) | 2026.10.17
+   * @note        : 역할을 비워 Mixed DML을 피한다. 권한 집합 · PSL은 할당하지 않는다(콜아웃은 테스트에서 Mock)
+   * @param lastName  성 (테스트에서 사용자를 다시 찾을 때 키로 쓴다)
+   * @param doInsert  true면 insert까지 수행 (DML 1번)
+   * @return User
+   **/
+  public static User createIntegrationUser(String lastName, Boolean doInsert) {
+    if (integrationProfileId == null) {
+      integrationProfileId = [
+        SELECT Id
+        FROM Profile
+        WHERE Name = :PROFILE_INTEGRATION
+      ]
+      .Id;
+    }
+    return newUser(
+      integrationProfileId,
+      'tint',
+      'test.int',
       lastName,
       doInsert
     );

@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<PermissionSet xmlns="http://soap.sforce.com/2006/04/metadata">
+    <classAccesses>
+        <apexClass>LogisticsResultRestResource</apexClass>
+        <enabled>true</enabled>
+    </classAccesses>
+    <classAccesses>
+        <apexClass>LogisticsResultService</apexClass>
+        <enabled>true</enabled>
+    </classAccesses>
+    <description
+  >26-10-18 IF-004 반영 결과 수신 API 호출 권한. 연동 사용자(Salesforce Integration 라이선스) 전용. 페널티 조회 · 로그 기록은 수신 Service가 시스템 모드로 해 오브젝트 권한은 주지 않음 by Kai</description>
+    <hasActivationRequired>false</hasActivationRequired>
+    <label>물류 결과 수신</label>
+    <license>Salesforce Integration</license>
+</PermissionSet>

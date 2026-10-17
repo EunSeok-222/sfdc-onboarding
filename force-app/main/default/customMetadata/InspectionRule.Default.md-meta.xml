@@ -19,6 +19,10 @@
         <value xsi:type="xsd:double">3</value>
     </values>
     <values>
+        <field>DeficiencyRate__c</field>
+        <value xsi:type="xsd:double">0.6</value>
+    </values>
+    <values>
         <field>DefaultDueDays__c</field>
         <value xsi:type="xsd:double">7</value>
     </values>

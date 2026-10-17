@@ -7,8 +7,9 @@
  *  Date         Modifier   Status      Description
  * --------------------------------------------------------------------------------------
  *  2026.10.13   Kai        Created     최초 작성 — Default 기준 조회
+ *  2026.10.18   Kai        Updated     항목 미흡 기준(getDeficiencyRate) 추가 — 결과 항목 미흡 자동 판정용(D1)
  * ======================================================================================
- *  @see         : InspectionService.cls, customMetadata/InspectionRule.Default.md-meta.xml
+ *  @see         : InspectionService.cls, InspectionResultService.cls, customMetadata/InspectionRule.Default.md-meta.xml
  *  @note        : getInstance()는 SOQL 한도를 쓰지 않는다. 기준이 '가맹점 등급별'로 나뉘면 이 클래스만 바뀐다
  * ======================================================================================*/
 public with sharing class InspectionRuleSelector {
@@ -37,6 +38,24 @@ public with sharing class InspectionRuleSelector {
       );
     }
     return rule;
+  }
+
+  /**
+   * @description : 항목 미흡 기준(점수 < 배점 × 이 값이면 미흡)을 반환한다. 값이 비어 있으면 즉시 실패한다.
+   * @author      : 이은석(Kai) | 2026.10.18
+   * @return Decimal 0~1 사이 비율 (예: 0.6)
+   **/
+  public static Decimal getDeficiencyRate() {
+    Decimal rate = getDefaultRule().DeficiencyRate__c;
+    if (rate == null) {
+      // WARN: 비어 있는데 0으로 보면 모든 항목이 정상, 1로 보면 만점 외 전부 미흡이 된다 — 어느 쪽도 조용히 저장되면 안 된다
+      throw new InspectionRuleException(
+        '점검 기준(InspectionRule__mdt) \'' +
+          DEFAULT_RULE +
+          '\'의 항목 미흡 기준(DeficiencyRate__c)이 비어 있습니다.'
+      );
+    }
+    return rate;
   }
 
   public class InspectionRuleException extends Exception {

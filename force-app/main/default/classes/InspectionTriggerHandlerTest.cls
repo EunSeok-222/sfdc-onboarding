@@ -10,6 +10,7 @@
  *  2026.10.12   Kai        Updated     D6 최근 정기점검일 테스트 T-09~T-16 추가 (TestDataFactory 사용)
  *  2026.10.14   Kai        Updated     SV 계정(runAs)으로 점검완료 저장 시 최근 정기점검일 갱신 테스트 추가
  *  2026.10.14   Kai        Updated     createSvUser를 TestDataFactory로 이동 (CorrectiveActionControllerTest와 공유)
+ *  2026.10.18   Kai        Updated     필수 미흡 점수를 항목 미흡 기준(배점 × 0.6)에 맞춤 — 미흡은 결과 항목 트리거가 판정
  * ======================================================================================
  *  @see         : Inspection.trigger, FranchiseInspectionDateService.cls, InspectionService.cls
  *  @note        : 관리자로만 돌던 테스트가 SV의 FLS(최근 정기점검일 읽기 전용) 문제를 못 잡았다 → runAs 시나리오 추가
@@ -108,7 +109,7 @@ private class InspectionTriggerHandlerTest {
     );
     insert ins;
     // 총점 34 / 40 = 85% → 합격, 필수 항목은 정상
-    insert newResults(ins.Id, new List<Integer>{ 9, 9, 8, 8 }, false);
+    insert newResults(ins.Id, new List<Integer>{ 9, 9, 8, 8 });
 
     Assert.isNull(
       [SELECT Judgement__c FROM Inspection__c WHERE Id = :ins.Id].Judgement__c,
@@ -135,8 +136,8 @@ private class InspectionTriggerHandlerTest {
       null
     );
     insert ins;
-    // 총점 36 / 40 = 90%여도 필수 항목이 미흡이면 불합격 (BR-03)
-    insert newResults(ins.Id, new List<Integer>{ 6, 10, 10, 10 }, true);
+    // 총점 35 / 40 = 87.5%여도 필수 항목이 미흡(5 < 10 × 0.6)이면 불합격 (BR-03)
+    insert newResults(ins.Id, new List<Integer>{ 5, 10, 10, 10 });
 
     Test.startTest();
     ins.Status__c = '점검완료';
@@ -513,7 +514,7 @@ private class InspectionTriggerHandlerTest {
     );
     ins.OwnerId = sv.Id; // DESC: SV가 자기 점검을 저장하는 상황 — 소유자라 공유 규칙과 무관하게 편집 가능
     insert ins;
-    insert newResults(ins.Id, new List<Integer>{ 9, 9, 8, 8 }, false);
+    insert newResults(ins.Id, new List<Integer>{ 9, 9, 8, 8 });
 
     Database.SaveResult result;
     Test.startTest();
@@ -580,11 +581,10 @@ private class InspectionTriggerHandlerTest {
     );
   }
 
-  /** 템플릿과 같은 4항목(배점 10). requiredDeficient가 true면 필수 항목(첫 번째)을 미흡으로 둔다 */
+  /** 템플릿과 같은 4항목(배점 10). 첫 번째가 필수. 미흡은 결과 항목 트리거가 점수로 판정한다(점수 < 배점 × 0.6) */
   private static List<InspectionResult__c> newResults(
     Id inspectionId,
-    List<Integer> scores,
-    Boolean requiredDeficient
+    List<Integer> scores
   ) {
     return new List<InspectionResult__c>{
       new InspectionResult__c(
@@ -593,8 +593,7 @@ private class InspectionTriggerHandlerTest {
         Category__c = '위생',
         MaxScore__c = 10,
         Score__c = scores[0],
-        IsRequired__c = true,
-        IsDeficient__c = requiredDeficient
+        IsRequired__c = true
       ),
       new InspectionResult__c(
         Inspection__c = inspectionId,

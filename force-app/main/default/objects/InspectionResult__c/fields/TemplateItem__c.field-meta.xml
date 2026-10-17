@@ -2,8 +2,19 @@
 <CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
     <fullName>TemplateItem__c</fullName>
     <deleteConstraint>Restrict</deleteConstraint>
-    <description>26-10-06 같은 항목 반복 판단 키(BR-08) by Kai</description>
+    <description
+  >26-10-06 같은 항목 반복 판단 키(BR-08) by Kai / 26-10-18 사용 중 항목만 보이는 선택형 조회 필터 · insert 시 스냅샷 복사 원본(BR-11) by Kai</description>
     <label>점검 항목 템플릿</label>
+    <lookupFilter>
+        <active>true</active>
+        <filterItems>
+            <field>InspectionTemplateItem__c.IsActive__c</field>
+            <operation>equals</operation>
+            <value>True</value>
+        </filterItems>
+        <infoMessage>사용 중인 점검 항목만 표시합니다.</infoMessage>
+        <isOptional>true</isOptional>
+    </lookupFilter>
     <referenceTo>InspectionTemplateItem__c</referenceTo>
     <relationshipLabel>점검 결과 항목</relationshipLabel>
     <relationshipName>TemplateItemInspectionResults</relationshipName>

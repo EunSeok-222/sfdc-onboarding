@@ -15,6 +15,7 @@
  *  2026.10.16   Kai        Updated     createRegionManagerUser 추가 (D10 승인 → 물류 통보 runAs 테스트용)
  *  2026.10.17   Kai        Updated     createLogisticsNotifyLogs 추가 (D10 인터페이스 로그 Outbox 테스트용)
  *  2026.10.17   Kai        Updated     createIntegrationUser 추가 (D11 연동 사용자 권한 아웃박스 처리 테스트용)
+ *  2026.10.18   Kai        Updated     createResults 미흡 직접 지정 제거 — 결과 항목 트리거가 판정(점수 < 배점 × 0.6, D1)
  * ======================================================================================
  *  @note        : @IsTest이므로 커버리지 분모에서 제외된다. doInsert = false면 insert 전 상태로
  *                 반환해 호출자가 필드를 더 손볼 수 있다 (벌크 테스트의 DML 1번 유지 목적)
@@ -284,9 +285,8 @@ public class TestDataFactory {
           ItemName__c = item.Name,
           Category__c = item.Category__c,
           MaxScore__c = item.MaxScore__c,
-          IsRequired__c = item.IsRequired__c,
-          // NOTE: 만점 미만이면 미흡으로 둔다. 다른 기준이 필요하면 doInsert = false로 받아 덮어쓴다
-          IsDeficient__c = (scores[i] < item.MaxScore__c)
+          IsRequired__c = item.IsRequired__c
+          // NOTE: 미흡(IsDeficient__c)은 넣지 않는다 — 결과 항목 트리거가 점수 < 배점 × 항목 미흡 기준(0.6)으로 판정한다
         )
       );
     }

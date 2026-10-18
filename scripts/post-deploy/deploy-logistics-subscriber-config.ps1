@@ -7,6 +7,7 @@
 # WARN: Username은 화면에 출력하지 않는다
 # WARN: 배포만으로는 적용되지 않는다 — 이미 구독 중인 트리거는 설정을 캐시해 기본 실행 사용자(Automated Process)로
 #       계속 돈다(D11 실측: 콜아웃이 External Credential 접근 불가로 실패). 배포 뒤 아래 수작업을 반드시 한다
+# NOTE: 두 org 전체 배포 후 수작업은 scripts/post-deploy/README.md — 아래 1~4는 이 스크립트와 관련된 kai-dev 항목만
 # 배포 후 수작업(대상 org마다):
 #   1) 구독 재시작: Setup → Quick Find 「Platform Events」 → 「물류 통보 이벤트」 → Subscriptions의
 #      LogisticsNotifyEvent 옆 Manage → Suspend → (State Suspended 확인) → Resume from Tip → State Running 확인.

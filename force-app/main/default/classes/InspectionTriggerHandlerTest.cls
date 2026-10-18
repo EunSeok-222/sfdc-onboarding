@@ -11,6 +11,7 @@
  *  2026.10.14   Kai        Updated     SV 계정(runAs)으로 점검완료 저장 시 최근 정기점검일 갱신 테스트 추가
  *  2026.10.14   Kai        Updated     createSvUser를 TestDataFactory로 이동 (CorrectiveActionControllerTest와 공유)
  *  2026.10.18   Kai        Updated     필수 미흡 점수를 항목 미흡 기준(배점 × 0.6)에 맞춤 — 미흡은 결과 항목 트리거가 판정
+ *  2026.10.18   Kai        Updated     정기점검 생성 시 결과 항목 자동 생성 테스트 5건 추가(불시 · 이관 · 중복 · 벌크 200 · SV)(D11)
  * ======================================================================================
  *  @see         : Inspection.trigger, FranchiseInspectionDateService.cls, InspectionService.cls
  *  @note        : 관리자로만 돌던 테스트가 SV의 FLS(최근 정기점검일 읽기 전용) 문제를 못 잡았다 → runAs 시나리오 추가
@@ -552,6 +553,243 @@ private class InspectionTriggerHandlerTest {
       inspectionDate,
       true
     )[0];
+  }
+
+  // ---------------------------------------------------------------- 결과 항목 자동 생성 (D11)
+
+  // 증명: 새 정기점검(이관번호 없음 · 점검예정)에는 사용 중 템플릿 전부가 결과 항목으로 생긴다 — 점수는 비고,
+  //       스냅샷(항목명 · 배점)은 결과 항목 트리거가 채우며, 비활성 템플릿은 빠진다. 판정은 아직 없다
+  @isTest
+  static void newRegularInspection_createsResultsFromActiveTemplates() {
+    insertTwentyTemplatesAndOneInactive();
+    Inspection__c ins = newInspection(
+      getStore('TEST-A'),
+      '점검예정',
+      REGULAR_RT_ID,
+      Date.today()
+    );
+
+    Test.startTest();
+    insert ins;
+    Test.stopTest();
+
+    List<InspectionResult__c> results = getResults(ins.Id);
+    Assert.areEqual(
+      20,
+      results.size(),
+      '사용 중 템플릿 20개 → 결과 20행(비활성 1개 제외)'
+    );
+    for (InspectionResult__c result : results) {
+      Assert.isNull(result.Score__c, '점수는 비워 둔다');
+      Assert.isNotNull(result.TemplateItem__c, '템플릿 Lookup');
+      Assert.isNotNull(
+        result.ItemName__c,
+        '스냅샷 항목명은 결과 항목 트리거가 채운다'
+      );
+      Assert.areEqual(5, result.MaxScore__c, '스냅샷 배점');
+      Assert.isFalse(result.IsDeficient__c, '점수가 없으면 판정 보류');
+    }
+    Inspection__c saved = [
+      SELECT ruTotalScore__c, ruMaxScore__c, Judgement__c
+      FROM Inspection__c
+      WHERE Id = :ins.Id
+    ];
+    Assert.areEqual(100, saved.ruMaxScore__c, '배점 합계 100');
+    Assert.areEqual(0, saved.ruTotalScore__c, '총점 0(미입력)');
+    Assert.isNull(saved.Judgement__c, '점검예정이라 판정하지 않는다');
+  }
+
+  // 증명: 불시점검 · 이관번호가 있는 점검 · 점검완료로 바로 들어온 점검에는 결과를 만들지 않는다
+  @isTest
+  static void unannouncedMigratedOrCompleted_createsNoResults() {
+    insertTwentyTemplatesAndOneInactive();
+    Account store = getStore('TEST-A');
+    Inspection__c unannounced = newInspection(
+      store,
+      '점검예정',
+      UNANNOUNCED_RT_ID,
+      Date.today()
+    );
+    Inspection__c migrated = newInspection(
+      store,
+      '점검예정',
+      REGULAR_RT_ID,
+      Date.today()
+    );
+    migrated.InspectionNo__c = 'MIG-TEST-0001';
+    Inspection__c completed = newInspection(
+      store,
+      '점검완료',
+      REGULAR_RT_ID,
+      Date.today()
+    );
+
+    Test.startTest();
+    insert new List<Inspection__c>{ unannounced, migrated, completed };
+    Test.stopTest();
+
+    Assert.areEqual(0, getResults(unannounced.Id).size(), '불시점검은 2차');
+    Assert.areEqual(
+      0,
+      getResults(migrated.Id).size(),
+      '이관번호가 있으면 이관 · 데모 데이터'
+    );
+    Assert.areEqual(
+      0,
+      getResults(completed.Id).size(),
+      '점검완료로 들어온 점검에 빈 행을 붙이면 0점 불합격이 되므로 제외'
+    );
+  }
+
+  // 증명: 이미 결과가 있는 점검은 같은 메서드를 다시 불러도 추가하지 않는다(없는 점검만 생성)
+  @isTest
+  static void existingResults_notDuplicated() {
+    List<InspectionTemplateItem__c> templates = insertTwentyTemplatesAndOneInactive();
+    Account store = getStore('TEST-A');
+    // NOTE: 이관번호를 채워 트리거 자동 생성을 피하고, 결과 1행을 직접 넣어 둔다
+    Inspection__c withResult = newInspection(
+      store,
+      '점검예정',
+      REGULAR_RT_ID,
+      Date.today()
+    );
+    withResult.InspectionNo__c = 'MIG-TEST-0002';
+    Inspection__c withoutResult = newInspection(
+      store,
+      '점검예정',
+      REGULAR_RT_ID,
+      Date.today()
+    );
+    withoutResult.InspectionNo__c = 'MIG-TEST-0003';
+    insert new List<Inspection__c>{ withResult, withoutResult };
+    insert new InspectionResult__c(
+      Inspection__c = withResult.Id,
+      TemplateItem__c = templates[0].Id,
+      Score__c = 5
+    );
+
+    Test.startTest();
+    InspectionResultService.createPendingResults(
+      new List<Inspection__c>{ withResult, withoutResult }
+    );
+    Test.stopTest();
+
+    Assert.areEqual(
+      1,
+      getResults(withResult.Id).size(),
+      '결과가 있던 점검은 그대로 1행'
+    );
+    Assert.areEqual(
+      20,
+      getResults(withoutResult.Id).size(),
+      '없던 점검만 20행'
+    );
+  }
+
+  // 증명: 정기점검 200건을 한 번에 넣어도 결과 4,000행이 생기고 SOQL은 손에 꼽는다(템플릿 캐시 — 결과 트리거 20회 실행에도 재조회 없음)
+  @isTest
+  static void bulk200RegularInspections_createsFourThousandResults() {
+    insertTwentyTemplatesAndOneInactive();
+    Account store = getStore('TEST-A');
+    List<Inspection__c> inspections = new List<Inspection__c>();
+    for (Integer i = 0; i < 200; i++) {
+      inspections.add(
+        newInspection(store, '점검예정', REGULAR_RT_ID, Date.today())
+      );
+    }
+
+    Test.startTest();
+    Integer queriesBefore = Limits.getQueries();
+    Integer cpuBefore = Limits.getCpuTime();
+    insert inspections;
+    Integer cpuUsed = Limits.getCpuTime() - cpuBefore;
+    Integer queriesUsed = Limits.getQueries() - queriesBefore;
+    Test.stopTest();
+
+    // NOTE: CPU 실측값은 ApexTestResultLimits(Tooling)로도 확인한다 — 아래는 한도(10,000ms)와 거리가 있는지만 본다
+    System.debug(
+      LoggingLevel.ERROR,
+      '>>> 200건 자동 생성 CPU ' + cpuUsed + 'ms · SOQL ' + queriesUsed
+    );
+    Assert.areEqual(
+      4000,
+      [
+        SELECT COUNT()
+        FROM InspectionResult__c
+        WHERE Inspection__c IN :inspections
+      ],
+      '200 × 20 = 4,000행'
+    );
+    Assert.isTrue(
+      queriesUsed <= 5,
+      'SOQL은 결과 확인 1 + 템플릿 1 정도여야 한다. 실제: ' + queriesUsed
+    );
+    Assert.isTrue(
+      cpuUsed < 8000,
+      'CPU 한도(10,000ms)에 여유가 있어야 한다. 실제: ' + cpuUsed + 'ms'
+    );
+  }
+
+  // 증명: 실제 입력자인 SV가 자기 가맹점에 정기점검을 만들어도 결과 20행이 SV 이름으로 생긴다
+  @isTest
+  static void svCreatesRegularInspection_resultsCreated() {
+    insertTwentyTemplatesAndOneInactive();
+    User sv = TestDataFactory.createSvUser('자동생성테스트SV', true);
+    Account store = getStore('TEST-A');
+    update new Account(Id = store.Id, OwnerId = sv.Id);
+    Inspection__c ins = newInspection(
+      store,
+      '점검예정',
+      REGULAR_RT_ID,
+      Date.today()
+    );
+
+    Test.startTest();
+    System.runAs(sv) {
+      insert ins;
+    }
+    Test.stopTest();
+
+    List<InspectionResult__c> results = getResults(ins.Id);
+    Assert.areEqual(20, results.size(), 'SV가 만들어도 20행');
+    Assert.areEqual(
+      sv.Id,
+      results[0].CreatedById,
+      '결과는 SV가 만든 것으로 남는다'
+    );
+    Assert.isNotNull(results[0].ItemName__c, '스냅샷 복사');
+  }
+
+  /** 새 점검표와 같은 사용 중 템플릿 20개(5점, 앞 6개 위생 필수) + 비활성 1개 */
+  private static List<InspectionTemplateItem__c> insertTwentyTemplatesAndOneInactive() {
+    List<InspectionTemplateItem__c> templates = TestDataFactory.createTemplateItems(
+      20,
+      6,
+      5,
+      true
+    );
+    insert new InspectionTemplateItem__c(
+      Name = 'TEST비활성항목',
+      Category__c = '서비스',
+      MaxScore__c = 5,
+      IsActive__c = false,
+      SortOrder__c = 99
+    );
+    return templates;
+  }
+
+  private static List<InspectionResult__c> getResults(Id inspectionId) {
+    return [
+      SELECT
+        Score__c,
+        TemplateItem__c,
+        ItemName__c,
+        MaxScore__c,
+        IsDeficient__c,
+        CreatedById
+      FROM InspectionResult__c
+      WHERE Inspection__c = :inspectionId
+    ];
   }
 
   private static Account getStore(String storeCode) {

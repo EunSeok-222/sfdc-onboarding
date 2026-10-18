@@ -8,8 +8,9 @@
  * --------------------------------------------------------------------------------------
  *  2026.10.11   Kai        Created     최초 작성 (뼈대)
  *  2026.10.11   Kai        Updated     상태 전이 검증 · 판정 세팅 · 최근 정기점검일 재계산 연결
+ *  2026.10.18   Kai        Updated     after insert — 새 정기점검(이관번호 없음 · 점검예정)에 결과 항목 자동 생성 연결(D11)
  * ======================================================================================
- *  @see         : Inspection.trigger, InspectionService.cls, FranchiseInspectionDateService.cls
+ *  @see         : Inspection.trigger, InspectionService.cls, InspectionResultService.cls, FranchiseInspectionDateService.cls
  * ======================================================================================*/
 public with sharing class InspectionTriggerHandler {
   // DESC: 상태 전이 허용 표 — 키 = 현재 상태, 값 = 갈 수 있는 다음 상태
@@ -52,6 +53,28 @@ public with sharing class InspectionTriggerHandler {
    **/
   public void afterInsert(List<Inspection__c> newInspections) {
     recalculateFranchiseDates(collectCountedFranchiseIds(newInspections));
+    InspectionResultService.createPendingResults(
+      collectNewRegularInspections(newInspections)
+    );
+  }
+
+  // DESC: 결과 항목 자동 생성 대상 — 정기점검이고, 이관번호가 없고(이관 · 테스트 · 데모 데이터 제외), 점검예정인 것만.
+  //       불시점검 · 재점검은 2차. 점검완료로 바로 들어온 점검에 빈 20행을 붙이면 0 / 100으로 즉시 불합격이 되므로 제외
+  // NOTE: 재귀 없음 — 결과 insert는 점검을 다시 insert하지 않고, 그 뒤 Roll-Up 갱신(점검 update)은 점수가 없어 판정 · 날짜 재계산을 건너뛴다
+  private List<Inspection__c> collectNewRegularInspections(
+    List<Inspection__c> inspections
+  ) {
+    List<Inspection__c> targets = new List<Inspection__c>();
+    for (Inspection__c ins : inspections) {
+      if (
+        ins.RecordTypeId == REGULAR_RECORD_TYPE_ID &&
+        String.isBlank(ins.InspectionNo__c) &&
+        ins.Status__c == FranchiseInspectionDateService.SCHEDULED_STATUS
+      ) {
+        targets.add(ins);
+      }
+    }
+    return targets;
   }
 
   /**

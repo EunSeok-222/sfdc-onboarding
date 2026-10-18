@@ -19,6 +19,21 @@
         <type>AutoNumber</type>
     </nameField>
     <pluralLabel>페널티</pluralLabel>
+    <searchLayouts>
+        <searchResultsAdditionalFields
+    >Franchise__c</searchResultsAdditionalFields>
+        <searchResultsAdditionalFields
+    >SourceInspection__c</searchResultsAdditionalFields>
+        <searchResultsAdditionalFields>Reason__c</searchResultsAdditionalFields>
+        <searchResultsAdditionalFields>Status__c</searchResultsAdditionalFields>
+        <searchResultsAdditionalFields
+    >StartDate__c</searchResultsAdditionalFields>
+        <searchResultsAdditionalFields
+    >PenaltyType__c</searchResultsAdditionalFields>
+        <searchResultsAdditionalFields
+    >EndDate__c</searchResultsAdditionalFields>
+        <searchResultsAdditionalFields>OBJECT_ID</searchResultsAdditionalFields>
+    </searchLayouts>
     <sharingModel>Private</sharingModel>
     <visibility>Public</visibility>
 </CustomObject>

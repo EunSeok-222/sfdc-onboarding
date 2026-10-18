@@ -19,6 +19,18 @@
         <type>AutoNumber</type>
     </nameField>
     <pluralLabel>시정조치</pluralLabel>
+    <searchLayouts>
+        <searchResultsAdditionalFields>Status__c</searchResultsAdditionalFields>
+        <searchResultsAdditionalFields
+    >DueDate__c</searchResultsAdditionalFields>
+        <searchResultsAdditionalFields
+    >RequiresRevisit__c</searchResultsAdditionalFields>
+        <searchResultsAdditionalFields
+    >InspectionResult__c</searchResultsAdditionalFields>
+        <searchResultsAdditionalFields
+    >CompletedDate__c</searchResultsAdditionalFields>
+        <searchResultsAdditionalFields>OBJECT_ID</searchResultsAdditionalFields>
+    </searchLayouts>
     <sharingModel>ControlledByParent</sharingModel>
     <visibility>Public</visibility>
 </CustomObject>

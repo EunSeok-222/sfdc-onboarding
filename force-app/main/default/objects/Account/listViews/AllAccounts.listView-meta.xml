@@ -3,13 +3,14 @@
     <fullName>AllAccounts</fullName>
     <columns>Region__c</columns>
     <columns>OpenDate__c</columns>
-    <columns>StoreCode__c</columns>
     <columns>ACCOUNT.NAME</columns>
+    <columns>StoreCode__c</columns>
+    <columns>LastRegularInspectionDate__c</columns>
+    <columns>CORE.USERS.ALIAS</columns>
     <columns>ACCOUNT.SITE</columns>
     <columns>ACCOUNT.ADDRESS1_STATE</columns>
     <columns>ACCOUNT.PHONE1</columns>
     <columns>ACCOUNT.TYPE</columns>
-    <columns>CORE.USERS.ALIAS</columns>
     <filterScope>Everything</filterScope>
     <label>All Accounts</label>
 </ListView>

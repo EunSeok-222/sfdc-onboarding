@@ -12,6 +12,7 @@
  *  2026.10.14   Kai        Updated     createSvUser를 TestDataFactory로 이동 (CorrectiveActionControllerTest와 공유)
  *  2026.10.18   Kai        Updated     필수 미흡 점수를 항목 미흡 기준(배점 × 0.6)에 맞춤 — 미흡은 결과 항목 트리거가 판정
  *  2026.10.18   Kai        Updated     정기점검 생성 시 결과 항목 자동 생성 테스트 5건 추가(불시 · 이관 · 중복 · 벌크 200 · SV)(D11)
+ *  2026.10.18   Kai        Updated     시정조치 생성 → 점검 시정중 자동 전환(Flow) 테스트 3건 추가(D11)
  * ======================================================================================
  *  @see         : Inspection.trigger, FranchiseInspectionDateService.cls, InspectionService.cls
  *  @note        : 관리자로만 돌던 테스트가 SV의 FLS(최근 정기점검일 읽기 전용) 문제를 못 잡았다 → runAs 시나리오 추가
@@ -787,6 +788,153 @@ private class InspectionTriggerHandlerTest {
         MaxScore__c,
         IsDeficient__c,
         CreatedById
+      FROM InspectionResult__c
+      WHERE Inspection__c = :inspectionId
+    ];
+  }
+
+  // ---------------------------------------------------------------- 시정조치 생성 → 시정중 자동 (Flow CorrectiveAction_AfterSave)
+
+  // 증명: 점검완료 점검에 시정조치를 추가하면 점검 상태가 시정중으로 바뀐다(전이 검증은 이 트리거가 통과시킨다)
+  @isTest
+  static void correctiveActionOnCompleted_movesInspectionToCorrecting() {
+    Inspection__c ins = insertInspectionWithResult(
+      TestDataFactory.STATUS_COMPLETED,
+      1
+    )[0];
+
+    Test.startTest();
+    TestDataFactory.createCorrectiveActions(
+      getResultsOf(ins.Id),
+      1,
+      '요청',
+      Date.today().addDays(7),
+      true
+    );
+    Test.stopTest();
+
+    Assert.areEqual(
+      '시정중',
+      [SELECT Status__c FROM Inspection__c WHERE Id = :ins.Id].Status__c,
+      '점검완료 → 시정중'
+    );
+  }
+
+  // 증명: 이미 시정중인 점검에 시정조치를 더해도 상태는 그대로이고 오류가 나지 않는다
+  @isTest
+  static void correctiveActionOnCorrecting_keepsStatusWithoutError() {
+    Inspection__c ins = insertInspectionWithResult('시정중', 1)[0];
+
+    Test.startTest();
+    List<Database.SaveResult> saved = Database.insert(
+      TestDataFactory.createCorrectiveActions(
+        getResultsOf(ins.Id),
+        1,
+        '요청',
+        Date.today().addDays(7),
+        false
+      ),
+      false
+    );
+    Test.stopTest();
+
+    Assert.isTrue(
+      saved[0].isSuccess(),
+      '오류 없이 저장: ' + saved[0].getErrors()
+    );
+    Assert.areEqual(
+      '시정중',
+      [SELECT Status__c FROM Inspection__c WHERE Id = :ins.Id].Status__c,
+      '상태 그대로'
+    );
+  }
+
+  // 증명: 점검 2건에 시정조치 200건을 한 번에 넣어도 두 점검 모두 시정중이 되고, 같은 점검을 여러 번 저장하지 않는다
+  @isTest
+  static void bulk200CorrectiveActionsOnTwoInspections_eachMovedOnce() {
+    List<Inspection__c> inspections = insertInspectionWithResult(
+      TestDataFactory.STATUS_COMPLETED,
+      2
+    );
+    Set<Id> inspectionIds = new Map<Id, Inspection__c>(inspections).keySet();
+    List<InspectionResult__c> results = [
+      SELECT Id
+      FROM InspectionResult__c
+      WHERE Inspection__c IN :inspectionIds
+    ];
+
+    Test.startTest();
+    Integer dmlBefore = Limits.getDmlStatements();
+    TestDataFactory.createCorrectiveActions(
+      results,
+      100,
+      '요청',
+      Date.today().addDays(7),
+      true
+    );
+    Integer dmlUsed = Limits.getDmlStatements() - dmlBefore;
+    Test.stopTest();
+
+    Assert.areEqual(
+      200,
+      [
+        SELECT COUNT()
+        FROM CorrectiveAction__c
+        WHERE InspectionResult__c IN :results
+      ],
+      '시정조치 200건'
+    );
+    for (Inspection__c saved : [
+      SELECT Status__c
+      FROM Inspection__c
+      WHERE Id IN :inspectionIds
+    ]) {
+      Assert.areEqual('시정중', saved.Status__c, '두 점검 모두 시정중');
+    }
+    // NOTE: insert 1 + Flow 점검 update 1(일괄) — 점검별 · 시정조치별로 DML이 늘지 않는다
+    Assert.isTrue(
+      dmlUsed <= 2,
+      '시정조치 insert 1 + 점검 update 1이어야 한다. 실제: ' + dmlUsed
+    );
+  }
+
+  /** 지정 상태의 정기점검(가맹점 1:1)마다 결과 항목 1건(10점 중 5점 — 미흡)을 만든다 */
+  private static List<Inspection__c> insertInspectionWithResult(
+    String status,
+    Integer count
+  ) {
+    List<Inspection__c> inspections = TestDataFactory.createInspections(
+      TestDataFactory.createFranchises(count, true),
+      1,
+      status,
+      TestDataFactory.RT_REGULAR,
+      Date.today(),
+      true
+    );
+    List<InspectionTemplateItem__c> templates = TestDataFactory.createTemplateItems(
+      1,
+      0,
+      10,
+      true
+    );
+    List<InspectionResult__c> results = new List<InspectionResult__c>();
+    for (Inspection__c ins : inspections) {
+      results.addAll(
+        TestDataFactory.createResults(
+          ins,
+          templates,
+          new List<Decimal>{ 5 },
+          false
+        )
+      );
+    }
+    insert results;
+    return inspections;
+  }
+
+  private static List<InspectionResult__c> getResultsOf(Id inspectionId) {
+    return [
+      SELECT Id
       FROM InspectionResult__c
       WHERE Inspection__c = :inspectionId
     ];

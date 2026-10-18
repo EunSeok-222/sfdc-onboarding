@@ -1,0 +1,96 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<Flow xmlns="http://soap.sforce.com/2006/04/metadata">
+    <apiVersion>67.0</apiVersion>
+    <areMetricsLoggedToDataCloud>false</areMetricsLoggedToDataCloud>
+    <decisions>
+        <name>Is_Parent_Inspection_Completed</name>
+        <label>Parent Inspection Completed?</label>
+        <locationX>0</locationX>
+        <locationY>0</locationY>
+        <defaultConnectorLabel>Keep Inspection Status</defaultConnectorLabel>
+        <rules>
+            <name>Parent_Inspection_Completed</name>
+            <conditionLogic>and</conditionLogic>
+            <conditions>
+                <leftValueReference
+        >$Record.InspectionResult__r.Inspection__r.Status__c</leftValueReference>
+                <operator>EqualTo</operator>
+                <rightValue>
+                    <stringValue>점검완료</stringValue>
+                </rightValue>
+            </conditions>
+            <connector>
+                <targetReference
+        >Update_Parent_Inspection_To_Correcting</targetReference>
+            </connector>
+            <label>Move Inspection to 시정중</label>
+        </rules>
+    </decisions>
+    <description
+  >26-10-18 시정조치 생성 후 부모 점검이 점검완료면 시정중으로 전환. 그 외 상태는 그대로(전이 검증은 점검 트리거) by Kai</description>
+    <environments>Default</environments>
+    <interviewLabel
+  >[시정조치] After Trigger 점검 시정중 전환 {!$Flow.CurrentDateTime}</interviewLabel>
+    <label>[시정조치] After Trigger 점검 시정중 전환</label>
+    <processMetadataValues>
+        <name>BuilderType</name>
+        <value>
+            <stringValue>LightningFlowBuilder</stringValue>
+        </value>
+    </processMetadataValues>
+    <processMetadataValues>
+        <name>CanvasMode</name>
+        <value>
+            <stringValue>AUTO_LAYOUT_CANVAS</stringValue>
+        </value>
+    </processMetadataValues>
+    <processMetadataValues>
+        <name>OriginBuilderType</name>
+        <value>
+            <stringValue>LightningFlowBuilder</stringValue>
+        </value>
+    </processMetadataValues>
+    <processType>AutoLaunchedFlow</processType>
+    <recordUpdates>
+        <description
+    >같은 점검의 시정조치가 여러 건이어도 「점검완료」인 점검만 대상이라 두 번째부터는 조건에 걸리지 않는다</description>
+        <name>Update_Parent_Inspection_To_Correcting</name>
+        <label>Set Parent Inspection Status to 시정중</label>
+        <locationX>0</locationX>
+        <locationY>0</locationY>
+        <filterLogic>and</filterLogic>
+        <filters>
+            <field>Id</field>
+            <operator>EqualTo</operator>
+            <value>
+                <elementReference
+        >$Record.InspectionResult__r.Inspection__c</elementReference>
+            </value>
+        </filters>
+        <filters>
+            <field>Status__c</field>
+            <operator>EqualTo</operator>
+            <value>
+                <stringValue>점검완료</stringValue>
+            </value>
+        </filters>
+        <inputAssignments>
+            <field>Status__c</field>
+            <value>
+                <stringValue>시정중</stringValue>
+            </value>
+        </inputAssignments>
+        <object>Inspection__c</object>
+    </recordUpdates>
+    <start>
+        <locationX>0</locationX>
+        <locationY>0</locationY>
+        <connector>
+            <targetReference>Is_Parent_Inspection_Completed</targetReference>
+        </connector>
+        <object>CorrectiveAction__c</object>
+        <recordTriggerType>Create</recordTriggerType>
+        <triggerType>RecordAfterSave</triggerType>
+    </start>
+    <status>Active</status>
+</Flow>

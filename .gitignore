@@ -48,3 +48,6 @@ $RECYCLE.BIN/
 **/venv/
 tmp-orgmeta/
 data/d3-migration/results/
+
+# Claude Code 로컬 산출물 (레포에 올리지 않음)
+Claude outputs/

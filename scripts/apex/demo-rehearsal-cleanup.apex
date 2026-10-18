@@ -7,6 +7,8 @@
  * --------------------------------------------------------------------------------------
  *  2026.10.18   Kai        Created     최초 작성 (D11 시연 초기화 — 점검 리셋 앞 단계)
  *  2026.10.18   Kai        Updated     라이브에서 새로 만든 의정부점 정기점검(이관번호 없음 · DEMO-006 이후)도 정리 대상에 추가
+ *  2026.10.18   Kai        Updated     승인 잠금 표시를 Approval.isLocked → 상태(승인대기 · 승인)로 변경 — Apex 잠금 API 설정을 꺼서 실패
+ *  2026.10.18   Kai        Updated     보존 추가 — INS-202610-0038 · PEN-000006(demo-story-uijeongbu 의정부점 9월 불합격 · 경고)
  * ======================================================================================
  *  실행 : sf apex run --file scripts/apex/demo-rehearsal-cleanup.apex --target-org kai-dev
  *  순서 : 1) 이 스크립트 미리보기(EXECUTE = false) → 대상과 「물류 org에 넘길 상관 ID」 확인
@@ -26,14 +28,18 @@
  *         리허설 페널티의 근거 점검이 비어 대상에서 빠질 수 있다
  *  WARN : 보존 — PEN-000000 ~ 000003, LOG-000000 ~ 000002(E2E 증거). 대상에 섞이면 제외하고 「보존 제외」로 출력한다.
  *         PEN-000002 · 000003은 사유가 DEMO-로 시작하지만 사유 접두로는 고르지 않는다
+ *  WARN : 보존 — 시연 이야기 데이터(demo-story-uijeongbu) INS-202610-0038 · PEN-000006(의정부점 9월 불합격 · 경고).
+ *         지금 조건에는 걸리지 않지만(이관번호 있음 · 근거 점검 있음) INS-0038이 지워지면 PEN-000006의 근거 점검이 SetNull로 비어
+ *         「근거 없음 · DEMO 가맹점 · DEMO 이후 생성」 조건에 걸릴 수 있어 번호로 고정해 둔다
  *  WARN : 승인 잠금(승인 완료 · 승인 대기) 페널티 삭제는 관리자(데이터 전체 수정) 실행이 전제다
  *  NOTE : 익명 실행이라 SYSTEM_MODE를 쓸 수 없다 — 조회는 WITH USER_MODE, 삭제는 실행자(관리자) 권한
  * ======================================================================================*/
 final Boolean EXECUTE = false;
 final Set<String> DEMO_NOS = new Set<String>{ 'DEMO-005', 'DEMO-006' };
 final Set<String> DEMO_FRANCHISES = new Set<String>{ '한끼정성 인천송도점', '한끼정성 의정부점' };
-final Set<String> PRESERVED_PENALTIES = new Set<String>{ 'PEN-000000', 'PEN-000001', 'PEN-000002', 'PEN-000003' };
+final Set<String> PRESERVED_PENALTIES = new Set<String>{ 'PEN-000000', 'PEN-000001', 'PEN-000002', 'PEN-000003', 'PEN-000006' };
 final Set<String> PRESERVED_LOGS = new Set<String>{ 'LOG-000000', 'LOG-000001', 'LOG-000002' };
+final Set<String> PRESERVED_INSPECTIONS = new Set<String>{ 'INS-202610-0038' };
 
 System.debug(LoggingLevel.ERROR, '>>> 모드: ' + (EXECUTE ? '실행(삭제)' : '미리보기(변경 없음)'));
 
@@ -58,14 +64,18 @@ Set<Id> demoIds = new Map<Id, Inspection__c>(demos).keySet();
 // DESC: 1-b) 라이브에서 새로 만든 의정부점 정기점검 — 이관번호 없음 · DEMO 가맹점 · DEMO 점검 이후 생성
 List<Inspection__c> liveInspections = new List<Inspection__c>();
 if (cutoff != null) {
-  liveInspections = [
+  for (Inspection__c live : [
     SELECT Id, Name, Status__c, Judgement__c, Franchise__r.Name, CreatedDate
     FROM Inspection__c
     WHERE InspectionNo__c = NULL AND RecordType.DeveloperName = 'Regular'
       AND Franchise__r.Name IN :DEMO_FRANCHISES AND CreatedDate > :cutoff
     WITH USER_MODE
-  ];
-  for (Inspection__c live : liveInspections) {
+  ]) {
+    if (PRESERVED_INSPECTIONS.contains(live.Name)) {
+      System.debug(LoggingLevel.ERROR, '>>> 보존 제외: ' + live.Name);
+      continue;
+    }
+    liveInspections.add(live);
     System.debug(LoggingLevel.ERROR, '>>> 대상 라이브 점검 ' + live.Name + ' · ' + live.Franchise__r.Name + ' · ' + live.Status__c +
       ' · 판정 ' + live.Judgement__c + ' (결과 항목 · 시정조치 함께 삭제)');
   }
@@ -99,15 +109,15 @@ for (Penalty__c penalty : candidatesById.values()) {
     penalties.add(penalty);
   }
 }
-Map<Id, Boolean> lockedById = penalties.isEmpty()
-  ? new Map<Id, Boolean>()
-  : Approval.isLocked(new List<Id>(new Map<Id, Penalty__c>(penalties).keySet()));
+// NOTE: Approval.isLocked는 「Apex에서 레코드 잠금 · 잠금 해제」 설정이 꺼져 있으면 NoAccessException — 상태로 잠금을 표시한다
+//       (승인대기 = 승인 진행 중 잠금, 승인 = 최종 승인 잠금 finalApprovalRecordLock)
+final Set<String> LOCKED_STATUSES = new Set<String>{ '승인대기', '승인' };
 Set<String> correlationIds = new Set<String>();
 for (Penalty__c penalty : penalties) {
   correlationIds.add(String.valueOf(penalty.Id));
   System.debug(LoggingLevel.ERROR, '>>> 대상 페널티 ' + penalty.Name + ' · ' + penalty.PenaltyType__c + ' · ' + penalty.Status__c +
     ' · ' + penalty.Franchise__r.Name + ' · 근거 ' + penalty.SourceInspection__r.InspectionNo__c +
-    (lockedById.get(penalty.Id) == true ? ' · 승인 잠금' : ''));
+    (LOCKED_STATUSES.contains(penalty.Status__c) ? ' · 승인 잠금' : ''));
 }
 
 // DESC: 3) 그 페널티의 인터페이스 로그 — 페널티 조회가 이미 비었어도 상관 ID로 찾는다

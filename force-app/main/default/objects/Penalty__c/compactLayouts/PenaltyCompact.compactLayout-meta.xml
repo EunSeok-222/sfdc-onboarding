@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<CompactLayout xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>PenaltyCompact</fullName>
+    <fields>Name</fields>
+    <fields>Franchise__c</fields>
+    <fields>PenaltyType__c</fields>
+    <fields>Status__c</fields>
+    <fields>StartDate__c</fields>
+    <fields>EndDate__c</fields>
+    <fields>SourceInspection__c</fields>
+    <label>페널티 강조 패널</label>
+</CompactLayout>

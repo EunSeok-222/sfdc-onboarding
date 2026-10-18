@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<QuickAction xmlns="http://soap.sforce.com/2006/04/metadata">
+    <description
+  >26-10-18 점검 화면에서 결과 항목 추가 — 템플릿 · 점수만 입력, 스냅샷 4필드 · 미흡은 결과 항목 트리거가 채움 by Kai</description>
+    <label>결과 항목 추가</label>
+    <optionsCreateFeedItem>false</optionsCreateFeedItem>
+    <quickActionLayout>
+        <layoutSectionStyle>TwoColumnsLeftToRight</layoutSectionStyle>
+        <quickActionLayoutColumns>
+            <quickActionLayoutItems>
+                <emptySpace>false</emptySpace>
+                <field>TemplateItem__c</field>
+                <uiBehavior>Required</uiBehavior>
+            </quickActionLayoutItems>
+        </quickActionLayoutColumns>
+        <quickActionLayoutColumns>
+            <quickActionLayoutItems>
+                <emptySpace>false</emptySpace>
+                <field>Score__c</field>
+                <uiBehavior>Edit</uiBehavior>
+            </quickActionLayoutItems>
+        </quickActionLayoutColumns>
+    </quickActionLayout>
+    <targetObject>InspectionResult__c</targetObject>
+    <targetParentField>Inspection__c</targetParentField>
+    <type>Create</type>
+</QuickAction>

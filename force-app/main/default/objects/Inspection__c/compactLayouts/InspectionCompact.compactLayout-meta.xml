@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<CompactLayout xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>InspectionCompact</fullName>
+    <fields>Name</fields>
+    <fields>Franchise__c</fields>
+    <fields>RecordTypeId</fields>
+    <fields>InspectionDate__c</fields>
+    <fields>Status__c</fields>
+    <fields>Judgement__c</fields>
+    <label>점검 강조 패널</label>
+</CompactLayout>

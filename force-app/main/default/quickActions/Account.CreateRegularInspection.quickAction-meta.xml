@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<QuickAction xmlns="http://soap.sforce.com/2006/04/metadata">
+    <description
+  >26-10-18 가맹점 화면에서 정기점검 생성 — 가맹점 = 현재 레코드, 점검일 기본 오늘. 저장 시 결과 항목 20행 자동 생성(점검 트리거) by Kai</description>
+    <fieldOverrides>
+        <field>InspectionDate__c</field>
+        <formula>TODAY()</formula>
+    </fieldOverrides>
+    <label>정기점검 생성</label>
+    <optionsCreateFeedItem>false</optionsCreateFeedItem>
+    <quickActionLayout>
+        <layoutSectionStyle>TwoColumnsLeftToRight</layoutSectionStyle>
+        <quickActionLayoutColumns>
+            <quickActionLayoutItems>
+                <emptySpace>false</emptySpace>
+                <field>InspectionDate__c</field>
+                <uiBehavior>Required</uiBehavior>
+            </quickActionLayoutItems>
+            <quickActionLayoutItems>
+                <emptySpace>false</emptySpace>
+                <field>OwnerId</field>
+                <uiBehavior>Edit</uiBehavior>
+            </quickActionLayoutItems>
+        </quickActionLayoutColumns>
+        <quickActionLayoutColumns>
+            <quickActionLayoutItems>
+                <emptySpace>false</emptySpace>
+                <field>Status__c</field>
+                <uiBehavior>Edit</uiBehavior>
+            </quickActionLayoutItems>
+        </quickActionLayoutColumns>
+    </quickActionLayout>
+    <targetObject>Inspection__c</targetObject>
+    <targetParentField>Franchise__c</targetParentField>
+    <targetRecordType>Inspection__c.Regular</targetRecordType>
+    <type>Create</type>
+</QuickAction>

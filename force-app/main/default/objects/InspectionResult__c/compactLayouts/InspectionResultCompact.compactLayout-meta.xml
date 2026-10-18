@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<CompactLayout xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>InspectionResultCompact</fullName>
+    <fields>Name</fields>
+    <fields>ItemName__c</fields>
+    <fields>Inspection__c</fields>
+    <fields>Category__c</fields>
+    <fields>Score__c</fields>
+    <fields>MaxScore__c</fields>
+    <fields>IsDeficient__c</fields>
+    <label>점검 결과 항목 강조 패널</label>
+</CompactLayout>

@@ -141,7 +141,7 @@
         <type>Default</type>
     </actionOverrides>
     <allowInChatterGroups>false</allowInChatterGroups>
-    <compactLayoutAssignment>SYSTEM</compactLayoutAssignment>
+    <compactLayoutAssignment>InspectionResultCompact</compactLayoutAssignment>
     <deploymentStatus>Deployed</deploymentStatus>
     <description
   >26-10-06 점검 1건의 항목별 점수. 템플릿 값 스냅샷 by Kai</description>

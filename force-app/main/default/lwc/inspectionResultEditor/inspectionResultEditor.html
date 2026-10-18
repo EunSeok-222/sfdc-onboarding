@@ -22,9 +22,7 @@
             </h3>
             <template for:each={group.rows} for:item="row">
               <div key={row.id} class={row.rowClass}>
-                <div
-                  class="slds-col slds-size_1-of-1 slds-medium-size_6-of-12 slds-var-p-vertical_xx-small"
-                >
+                <div class={nameCellClass}>
                   <span>{row.itemName}</span>
                   <template lwc:if={row.isRequired}>
                     <lightning-badge
@@ -33,9 +31,7 @@
                     ></lightning-badge>
                   </template>
                 </div>
-                <div
-                  class="slds-col slds-size_1-of-2 slds-medium-size_3-of-12 slds-grid slds-grid_vertical-align-center"
-                >
+                <div class={scoreCellClass}>
                   <lightning-input
                     type="number"
                     label={row.itemName}
@@ -49,11 +45,11 @@
                     onchange={handleScoreChange}
                     class="score-input"
                   ></lightning-input>
-                  <span class="slds-m-left_x-small">/ {row.maxScore}</span>
+                  <span class="slds-m-left_x-small result-max"
+                    >/ {row.maxScore}</span
+                  >
                 </div>
-                <div
-                  class="slds-col slds-size_1-of-2 slds-medium-size_3-of-12 slds-text-align_right"
-                >
+                <div class={flagCellClass}>
                   <template lwc:if={row.isDeficient}>
                     <lightning-badge
                       label="미흡"

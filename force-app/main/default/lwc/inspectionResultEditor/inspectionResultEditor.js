@@ -6,6 +6,7 @@
  *  Date         Modifier   Status      Description
  * --------------------------------------------------------------------------------------
  *  2026.10.18   Kai        Created     최초 작성 — 26-10-18 SC-02 점검 결과 입력
+ *  2026.10.18   Kai        Updated     26-10-18 좁은 영역 세로 배치 by Kai
  * ======================================================================================
  *  @see         : InspectionResultController.cls, inspectionJudgementPanel(저장 뒤 getRecord로 갱신)
  *  @note        : 범위 밖 — 사진 첨부(BR-04) · 임시 저장/완료 분리 · 완료 미리보기 · 행 추가/삭제. 버튼은 「저장」 하나
@@ -20,6 +21,8 @@ import saveResults from "@salesforce/apex/InspectionResultController.saveResults
 
 export default class InspectionResultEditor extends LightningElement {
   @api recordId;
+  // NOTE: 레코드 페이지가 넣어 주는 영역 폭(SMALL · MEDIUM · LARGE). App Page 등에서는 비어 있다
+  @api flexipageRegionWidth;
 
   // DESC: 화면에서 고친 점수만 담는다 — 결과 항목 Id → 점수(비우면 null)
   draftScoresById = {};
@@ -49,6 +52,31 @@ export default class InspectionResultEditor extends LightningElement {
 
   get hasResults() {
     return this.results.length > 0;
+  }
+
+  // DESC: 사이드바 등 좁은 영역이면 세로 배치. 값이 없으면 넓은 배치
+  get isNarrow() {
+    return this.flexipageRegionWidth === "SMALL";
+  }
+
+  // NOTE: slds-medium-size_*는 화면 폭 기준이라 좁은 사이드바에서도 6/3/3으로 나뉜다 — 영역 폭(isNarrow)으로 명시 분기
+  //       좁을 때: 1줄 항목명 · 필수 / 2줄 점수 · 배점 · 미흡(오른쪽 끝)
+  get nameCellClass() {
+    return this.isNarrow
+      ? "slds-col slds-size_1-of-1 slds-var-p-top_xx-small result-name_narrow"
+      : "slds-col slds-size_6-of-12 slds-var-p-vertical_xx-small";
+  }
+
+  get scoreCellClass() {
+    return this.isNarrow
+      ? "slds-col slds-grid slds-grid_vertical-align-center slds-var-p-vertical_xx-small"
+      : "slds-col slds-size_3-of-12 slds-grid slds-grid_vertical-align-center";
+  }
+
+  get flagCellClass() {
+    return this.isNarrow
+      ? "slds-col slds-grow-none slds-var-p-left_small slds-text-align_right"
+      : "slds-col slds-size_3-of-12 slds-text-align_right";
   }
 
   // NOTE: 종료된 점검 · 점수 편집 권한이 없는 사용자는 저장 버튼 자체를 숨긴다(입력칸은 disabled)

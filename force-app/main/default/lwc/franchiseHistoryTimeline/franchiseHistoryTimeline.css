@@ -7,6 +7,7 @@
  * --------------------------------------------------------------------------------------
  *  2026.10.14   Kai        Created     최초 작성 (확정 시안 docs/design/sc03-franchise-history-mockup.html 값 그대로)
  *  2026.10.14   Kai        Updated     중립(회색) 배지 추가 — 페널티 '반려'
+ *  2026.10.19   Kai        Updated     BR-08 연속 불합격 안내 추가(리허설 2회차 발견)
  * ======================================================================================
  *  @note        : 판정 3색은 inspectionJudgementPanel.css의 --wsds-judgement-* 와 같은 값이다(shadow DOM이라 그 변수를
  *                 직접 쓸 수 없어 같은 값으로 다시 정의). 간격 · 크기 · 모서리는 --wdls-g-* 토큰 + var() 기본값
@@ -39,6 +40,13 @@
   --wsds-history-done-fg: #22683e;
   /* NOTE: 중립(회색) — 판정 패널 --wsds-judgement-none과 같은 값 */
   --wsds-history-none: #747474;
+
+  /* DESC: BR-08 연속 불합격 안내 — 경고형은 주황 계열, 안내형은 pending과 같은 값 */
+  --wsds-history-notice-warning-bg: #fef3e8;
+  --wsds-history-notice-warning-fg: #7a3c00;
+  --wsds-history-notice-warning-line: #fe9339;
+  --wsds-history-notice-info-bg: #eef4ff;
+  --wsds-history-notice-info-fg: #014486;
 }
 
 .wsds-history {
@@ -88,6 +96,41 @@
   margin: 0;
   font-size: 13px;
   color: var(--wsds-history-text-weak);
+}
+
+/* ---------------------------------------------------------------- BR-08 연속 불합격 안내 */
+
+.wsds-history__notice {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--wdls-g-spacing-sm, 8px);
+  margin: 0 20px var(--wdls-g-spacing-sm, 8px);
+  padding: 10px 12px;
+  border-radius: var(--wdls-g-border-radius-sm, 4px);
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.4;
+}
+
+/* NOTE: 글씨 #7a3c00 / 바탕 #fef3e8 대비 약 8:1 — 왼쪽 주황 선은 보조 표시이고 구분은 아이콘 + 문구가 한다 */
+.wsds-history__notice--warning {
+  border-left: 4px solid var(--wsds-history-notice-warning-line);
+  background: var(--wsds-history-notice-warning-bg);
+  color: var(--wsds-history-notice-warning-fg);
+}
+
+.wsds-history__notice--info {
+  background: var(--wsds-history-notice-info-bg);
+  color: var(--wsds-history-notice-info-fg);
+}
+
+.wsds-history__notice-icon {
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.wsds-history__notice-text {
+  margin: 0;
 }
 
 /* ---------------------------------------------------------------- 필터 칩 */

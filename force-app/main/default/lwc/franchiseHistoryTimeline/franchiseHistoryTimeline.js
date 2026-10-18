@@ -7,6 +7,7 @@
  * --------------------------------------------------------------------------------------
  *  2026.10.14   Kai        Created     최초 작성 (확정 시안 docs/design/sc03-franchise-history-mockup.html)
  *  2026.10.14   Kai        Updated     페널티 '반려' 배지를 완료(초록)에서 중립(회색)으로 변경
+ *  2026.10.19   Kai        Updated     BR-08 연속 불합격 안내 추가(리허설 2회차 발견)
  * ======================================================================================
  *  @see         : FranchiseHistoryController.cls
  *  @note        : Apex는 데이터만 준다. 상태 → 색(TONE), 날짜 · 기한 문구 조합은 여기서 한다
@@ -59,6 +60,13 @@ const TONE_BY_PENALTY_STATUS = {
   // NOTE: 반려는 회색(none). 초록은 좋게 끝남으로 읽힌다. 반려는 페널티 없이 종료된 중립 상태
   반려: "none"
 };
+
+// DESC: BR-08 연속 불합격 안내 — 판정이 난 점검 최근 2건이 모두 불합격이면 헤더 아래에 한 줄
+// NOTE: 서버 감지 · 홈 알림은 2차. 지금은 이 화면에서만 알려 준다
+const STREAK_COUNT = 2;
+const FAIL_JUDGEMENT = "불합격";
+const SUPPLY_RESTRICTION_TYPE = "공급 제한";
+const REJECTED_PENALTY_STATUS = "반려";
 
 const DAY_OF_WEEK = ["일", "월", "화", "수", "목", "금", "토"];
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
@@ -113,6 +121,60 @@ export default class FranchiseHistoryTimeline extends NavigationMixin(
     return [name, storeCode, ownerName ? "담당 SV " + ownerName : null]
       .filter(Boolean)
       .join(" · ");
+  }
+
+  // DESC: BR-08 「불합격 2회 연속」 안내. 필터 칩과 상관없이 전체 events로 계산한다(칩은 보이는 목록만 바꾼다)
+  //       조건이 안 맞거나 로딩 중이면 null → 템플릿이 아무것도 그리지 않는다
+  get streakNotice() {
+    if (!this.isLoaded) {
+      return null;
+    }
+    // 규칙 1) 판정이 난 점검만. Apex가 날짜 내림차순으로 주므로 앞쪽이 최근이다
+    const judged = this.events.filter(
+      (ev) => ev.eventType === "INSPECTION" && ev.judgement
+    );
+    // 규칙 2) 최근 2건이 모두 불합격 — 점검 유형(정기 · 재점검 · 불시)은 구분하지 않는다
+    const recent = judged.slice(0, STREAK_COUNT);
+    if (
+      recent.length < STREAK_COUNT ||
+      !recent.every((ev) => ev.judgement === FAIL_JUDGEMENT)
+    ) {
+      return null;
+    }
+    // NOTE: 문구의 날짜는 오래된 것 → 최근 순
+    const dates = [...recent]
+      .reverse()
+      .map((ev) => monthDay(parseDate(ev.eventDate)))
+      .join(" · ");
+    // 규칙 3) 최근 불합격 점검을 근거로 한 공급 제한(반려 제외)이 있으면 안내형, 없으면 경고형
+    const latestInspectionNo = recent[0].recordNo;
+    const penalty = this.events.find(
+      (ev) =>
+        ev.eventType === "PENALTY" &&
+        ev.penaltyType === SUPPLY_RESTRICTION_TYPE &&
+        ev.status !== REJECTED_PENALTY_STATUS &&
+        ev.sourceInspectionNo === latestInspectionNo
+    );
+    const lead = "최근 점검 2회 연속 불합격 (" + dates + ")";
+    if (penalty) {
+      return {
+        isWarning: false,
+        className: "wsds-history__notice wsds-history__notice--info",
+        text:
+          lead +
+          " → 공급 제한 " +
+          penalty.recordNo +
+          " 발의됨" +
+          (penalty.status ? " · " + penalty.status : "")
+      };
+    }
+    return {
+      isWarning: true,
+      className: "wsds-history__notice wsds-history__notice--warning",
+      text:
+        lead +
+        " — 공급 제한(BR-08) 검토 대상입니다. 점검 화면의 「페널티 발의」로 진행합니다."
+    };
   }
 
   get chips() {

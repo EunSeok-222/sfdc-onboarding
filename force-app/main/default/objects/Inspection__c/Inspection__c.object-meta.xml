@@ -166,7 +166,25 @@
     </nameField>
     <pluralLabel>점검</pluralLabel>
     <recordTypeTrackHistory>false</recordTypeTrackHistory>
-    <searchLayouts />
+    <searchLayouts>
+        <searchResultsAdditionalFields
+    >Franchise__c</searchResultsAdditionalFields>
+        <searchResultsAdditionalFields
+    >ruMaxScore__c</searchResultsAdditionalFields>
+        <searchResultsAdditionalFields>Status__c</searchResultsAdditionalFields>
+        <searchResultsAdditionalFields
+    >OriginalInspection__c</searchResultsAdditionalFields>
+        <searchResultsAdditionalFields
+    >InspectionNo__c</searchResultsAdditionalFields>
+        <searchResultsAdditionalFields
+    >InspectionDate__c</searchResultsAdditionalFields>
+        <searchResultsAdditionalFields
+    >ruTotalScore__c</searchResultsAdditionalFields>
+        <searchResultsAdditionalFields
+    >Judgement__c</searchResultsAdditionalFields>
+        <searchResultsAdditionalFields
+    >ruDeficientRequiredCount__c</searchResultsAdditionalFields>
+    </searchLayouts>
     <sharingModel>Private</sharingModel>
     <visibility>Public</visibility>
 </CustomObject>

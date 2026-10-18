@@ -152,13 +152,14 @@
     <relatedLists>
         <fields>NAME</fields>
         <fields>ItemName__c</fields>
-        <fields>IsRequired__c</fields>
         <fields>Category__c</fields>
-        <fields>IsDeficient__c</fields>
         <fields>Score__c</fields>
         <fields>MaxScore__c</fields>
-        <fields>TemplateItem__c</fields>
+        <fields>IsRequired__c</fields>
+        <fields>IsDeficient__c</fields>
         <relatedList>InspectionResult__c.Inspection__c</relatedList>
+        <sortField>NAME</sortField>
+        <sortOrder>Asc</sortOrder>
     </relatedLists>
     <relatedLists>
         <fields>NAME</fields>
@@ -170,7 +171,12 @@
         <fields>NAME</fields>
         <fields>PenaltyType__c</fields>
         <fields>Status__c</fields>
+        <fields>StartDate__c</fields>
+        <fields>EndDate__c</fields>
+        <fields>OWNER.ALIAS</fields>
         <relatedList>Penalty__c.SourceInspection__c</relatedList>
+        <sortField>StartDate__c</sortField>
+        <sortOrder>Desc</sortOrder>
     </relatedLists>
     <showEmailCheckbox>false</showEmailCheckbox>
     <showHighlightsPanel>false</showHighlightsPanel>

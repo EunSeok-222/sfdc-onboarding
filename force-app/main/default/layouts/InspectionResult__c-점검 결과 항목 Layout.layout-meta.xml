@@ -85,7 +85,11 @@
         <fields>NAME</fields>
         <fields>Status__c</fields>
         <fields>DueDate__c</fields>
+        <fields>CompletedDate__c</fields>
+        <fields>RequiresRevisit__c</fields>
         <relatedList>CorrectiveAction__c.InspectionResult__c</relatedList>
+        <sortField>DueDate__c</sortField>
+        <sortOrder>Asc</sortOrder>
     </relatedLists>
     <showEmailCheckbox>false</showEmailCheckbox>
     <showHighlightsPanel>false</showHighlightsPanel>

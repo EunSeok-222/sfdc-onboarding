@@ -6,6 +6,7 @@
  *  Date         Modifier   Status      Description
  * --------------------------------------------------------------------------------------
  *  2026.10.18   Kai        Created     최초 작성 (D11 시연 초기화 — 점검 리셋 앞 단계)
+ *  2026.10.18   Kai        Updated     라이브에서 새로 만든 의정부점 정기점검(이관번호 없음 · DEMO-006 이후)도 정리 대상에 추가
  * ======================================================================================
  *  실행 : sf apex run --file scripts/apex/demo-rehearsal-cleanup.apex --target-org kai-dev
  *  순서 : 1) 이 스크립트 미리보기(EXECUTE = false) → 대상과 「물류 org에 넘길 상관 ID」 확인
@@ -17,7 +18,9 @@
  *         - 근거 점검이 비었어도 가맹점이 인천송도점 · 의정부점이고 DEMO 점검보다 나중에 만든 페널티
  *           (점검을 지우면 페널티 → 근거 점검 조회가 SetNull로 비기 때문)
  *         - 그 페널티의 인터페이스 로그(페널티 조회 또는 상관 ID 일치) — 로그 → 페널티 조회도 SetNull이라 페널티만 지우면 로그가 남는다
- *  NOTE : 삭제 순서 = 로그 → 페널티. 점검을 지우면 결과 항목 · 시정조치는 Master-Detail이라 함께 삭제되고,
+ *         - 라이브에서 「정기점검 생성」으로 만든 의정부점 정기점검(이관번호 없음 · DEMO-006 이후 생성) — 결과 항목 · 시정조치는
+ *           Master-Detail이라 점검과 함께 삭제된다. 그 점검을 근거로 한 페널티도 대상
+ *  NOTE : 삭제 순서 = 로그 → 페널티 → 라이브 점검. 점검을 지우면 결과 항목 · 시정조치는 Master-Detail이라 함께 삭제되고,
  *         다른 점검의 원 점검 조회는 SetNull이다(Restrict 없음)
  *  WARN : demo-scene5-reset보다 먼저 실행한다 — 리셋이 먼저 돌면 DEMO 점검이 새로 만들어져 「DEMO보다 나중」 기준이 바뀌고
  *         리허설 페널티의 근거 점검이 비어 대상에서 빠질 수 있다
@@ -52,13 +55,31 @@ for (Inspection__c demo : demos) {
 }
 Set<Id> demoIds = new Map<Id, Inspection__c>(demos).keySet();
 
+// DESC: 1-b) 라이브에서 새로 만든 의정부점 정기점검 — 이관번호 없음 · DEMO 가맹점 · DEMO 점검 이후 생성
+List<Inspection__c> liveInspections = new List<Inspection__c>();
+if (cutoff != null) {
+  liveInspections = [
+    SELECT Id, Name, Status__c, Judgement__c, Franchise__r.Name, CreatedDate
+    FROM Inspection__c
+    WHERE InspectionNo__c = NULL AND RecordType.DeveloperName = 'Regular'
+      AND Franchise__r.Name IN :DEMO_FRANCHISES AND CreatedDate > :cutoff
+    WITH USER_MODE
+  ];
+  for (Inspection__c live : liveInspections) {
+    System.debug(LoggingLevel.ERROR, '>>> 대상 라이브 점검 ' + live.Name + ' · ' + live.Franchise__r.Name + ' · ' + live.Status__c +
+      ' · 판정 ' + live.Judgement__c + ' (결과 항목 · 시정조치 함께 삭제)');
+  }
+}
+Set<Id> sourceInspectionIds = new Set<Id>(demoIds);
+sourceInspectionIds.addAll(new Map<Id, Inspection__c>(liveInspections).keySet());
+
 // DESC: 2) 대상 페널티 후보 — 근거 점검이 DEMO + (근거 점검이 비었고 DEMO 가맹점 · DEMO 이후 생성)
 Map<Id, Penalty__c> candidatesById = new Map<Id, Penalty__c>();
 if (!demoIds.isEmpty()) {
   candidatesById.putAll([
     SELECT Id, Name, PenaltyType__c, Status__c, Franchise__r.Name, SourceInspection__r.InspectionNo__c, CreatedDate
     FROM Penalty__c
-    WHERE SourceInspection__c IN :demoIds
+    WHERE SourceInspection__c IN :sourceInspectionIds
     WITH USER_MODE
   ]);
   candidatesById.putAll([
@@ -109,17 +130,18 @@ if (!penalties.isEmpty()) {
   }
 }
 
-System.debug(LoggingLevel.ERROR, '>>> 대상 합계: 페널티 ' + penalties.size() + '건 · 인터페이스 로그 ' + logs.size() + '건');
+System.debug(LoggingLevel.ERROR, '>>> 대상 합계: 페널티 ' + penalties.size() + '건 · 인터페이스 로그 ' + logs.size() + '건 · 라이브 점검 ' + liveInspections.size() + '건');
 // NOTE: 물류 org 스크립트의 CORRELATION_IDS에 그대로 붙여 넣는 형태로 출력한다(org 간 조회 불가)
 System.debug(LoggingLevel.ERROR, '>>> 물류 org에 넘길 상관 ID ' + correlationIds.size() + '건: ' +
   (correlationIds.isEmpty() ? '(없음)' : '\'' + String.join(new List<String>(correlationIds), '\', \'') + '\''));
 
-if (EXECUTE && (!penalties.isEmpty() || !logs.isEmpty())) {
+if (EXECUTE && (!penalties.isEmpty() || !logs.isEmpty() || !liveInspections.isEmpty())) {
   Savepoint sp = Database.setSavepoint();
   try {
     delete logs;
     delete penalties;
-    System.debug(LoggingLevel.ERROR, '>>> 삭제 완료: 로그 ' + logs.size() + '건 → 페널티 ' + penalties.size() + '건. 다음: 물류 org 정리 → demo-scene5-reset');
+    delete liveInspections;
+    System.debug(LoggingLevel.ERROR, '>>> 삭제 완료: 로그 ' + logs.size() + '건 → 페널티 ' + penalties.size() + '건 → 라이브 점검 ' + liveInspections.size() + '건. 다음: 물류 org 정리 → demo-scene5-reset');
   } catch (Exception e) {
     Database.rollback(sp);
     System.debug(LoggingLevel.ERROR, '>>> 실패 — 롤백함: ' + e.getMessage());

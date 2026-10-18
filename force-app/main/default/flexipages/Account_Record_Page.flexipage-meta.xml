@@ -38,12 +38,6 @@
     <flexiPageRegions>
         <itemInstances>
             <componentInstance>
-                <componentName>cooper:companyInsightTeaserCard</componentName>
-                <identifier>cooper_companyInsightTeaserCard</identifier>
-            </componentInstance>
-        </itemInstances>
-        <itemInstances>
-            <componentInstance>
                 <componentInstanceProperties>
                     <name>displayOption</name>
                     <value>BOTH</value>
@@ -106,6 +100,20 @@
                 </componentInstanceProperties>
                 <componentInstanceProperties>
                     <name>body</name>
+                    <value>Facet-2c552f96-5c10-42ce-afe0-b06640bf4574</value>
+                </componentInstanceProperties>
+                <componentInstanceProperties>
+                    <name>title</name>
+                    <value>매장 이력</value>
+                </componentInstanceProperties>
+                <componentName>flexipage:tab</componentName>
+                <identifier>flexipage_tab</identifier>
+            </componentInstance>
+        </itemInstances>
+        <itemInstances>
+            <componentInstance>
+                <componentInstanceProperties>
+                    <name>body</name>
                     <value>relatedTabContent</value>
                 </componentInstanceProperties>
                 <componentInstanceProperties>
@@ -128,20 +136,6 @@
                 </componentInstanceProperties>
                 <componentName>flexipage:tab</componentName>
                 <identifier>detailTab</identifier>
-            </componentInstance>
-        </itemInstances>
-        <itemInstances>
-            <componentInstance>
-                <componentInstanceProperties>
-                    <name>body</name>
-                    <value>Facet-2c552f96-5c10-42ce-afe0-b06640bf4574</value>
-                </componentInstanceProperties>
-                <componentInstanceProperties>
-                    <name>title</name>
-                    <value>매장 이력</value>
-                </componentInstanceProperties>
-                <componentName>flexipage:tab</componentName>
-                <identifier>flexipage_tab</identifier>
             </componentInstance>
         </itemInstances>
         <mode>Replace</mode>

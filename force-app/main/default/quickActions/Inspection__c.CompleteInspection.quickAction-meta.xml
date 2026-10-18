@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<QuickAction xmlns="http://soap.sforce.com/2006/04/metadata">
+    <description
+  >26-10-18 점검 상태를 점검완료로 바꾸는 레코드 업데이트 액션. 전이 검증 · 판정은 점검 트리거가 함 by Kai</description>
+    <fieldOverrides>
+        <field>Status__c</field>
+        <literalValue>점검완료</literalValue>
+    </fieldOverrides>
+    <label>점검완료 처리</label>
+    <optionsCreateFeedItem>false</optionsCreateFeedItem>
+    <quickActionLayout>
+        <layoutSectionStyle>TwoColumnsLeftToRight</layoutSectionStyle>
+        <quickActionLayoutColumns>
+            <quickActionLayoutItems>
+                <emptySpace>false</emptySpace>
+                <field>Status__c</field>
+                <uiBehavior>Required</uiBehavior>
+            </quickActionLayoutItems>
+        </quickActionLayoutColumns>
+        <quickActionLayoutColumns />
+    </quickActionLayout>
+    <type>Update</type>
+</QuickAction>

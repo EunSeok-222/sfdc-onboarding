@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<PathAssistant xmlns="http://soap.sforce.com/2006/04/metadata">
+    <active>true</active>
+    <entityName>Inspection__c</entityName>
+    <fieldName>Status__c</fieldName>
+    <masterLabel>점검 상태 Path (정기점검)</masterLabel>
+    <pathAssistantSteps>
+        <fieldNames>Franchise__c</fieldNames>
+        <fieldNames>InspectionDate__c</fieldNames>
+        <fieldNames>OwnerId</fieldNames>
+        <info
+    >&lt;p&gt;결과 항목 점수를 입력한 뒤 「점검완료 처리」를 누릅니다. 미흡은 점수 저장 시 자동 판정됩니다.&lt;/p&gt;</info>
+        <picklistValueName>점검예정</picklistValueName>
+    </pathAssistantSteps>
+    <pathAssistantSteps>
+        <fieldNames>Judgement__c</fieldNames>
+        <fieldNames>ruTotalScore__c</fieldNames>
+        <fieldNames>ruDeficientRequiredCount__c</fieldNames>
+        <info
+    >&lt;p&gt;판정을 확인합니다. 시정 필요 · 불합격이면 미흡 항목에 시정조치를 등록하고 상태를 「시정중」으로 바꿉니다.&lt;/p&gt;</info>
+        <picklistValueName>점검완료</picklistValueName>
+    </pathAssistantSteps>
+    <pathAssistantSteps>
+        <fieldNames>ruDeficientRequiredCount__c</fieldNames>
+        <fieldNames>Judgement__c</fieldNames>
+        <fieldNames>OwnerId</fieldNames>
+        <info
+    >&lt;p&gt;시정조치를 기한 안에 「조치 완료 등록」합니다. 기한이 지나면 매일 01:00 배치가 「지연」으로 바꿉니다.&lt;/p&gt;</info>
+        <picklistValueName>시정중</picklistValueName>
+    </pathAssistantSteps>
+    <pathAssistantSteps>
+        <fieldNames>ruDeficientRequiredCount__c</fieldNames>
+        <fieldNames>Judgement__c</fieldNames>
+        <fieldNames>OwnerId</fieldNames>
+        <info
+    >&lt;p&gt;지연된 시정조치를 확인하고 재방문합니다. 재점검을 마치면 「재점검완료」로 바꿉니다.&lt;/p&gt;</info>
+        <picklistValueName>지연</picklistValueName>
+    </pathAssistantSteps>
+    <pathAssistantSteps>
+        <fieldNames>OriginalInspection__c</fieldNames>
+        <fieldNames>Judgement__c</fieldNames>
+        <fieldNames>ruTotalScore__c</fieldNames>
+        <info
+    >&lt;p&gt;재점검 결과를 확인합니다. 같은 항목이 반복 지적되면 페널티를 발의하고, 끝나면 「종료 처리」를 누릅니다.&lt;/p&gt;</info>
+        <picklistValueName>재점검완료</picklistValueName>
+    </pathAssistantSteps>
+    <pathAssistantSteps>
+        <fieldNames>Judgement__c</fieldNames>
+        <fieldNames>ruTotalScore__c</fieldNames>
+        <fieldNames>InspectionDate__c</fieldNames>
+        <info
+    >&lt;p&gt;종료된 점검입니다. 당시 항목 · 배점 · 판정은 그대로 보존됩니다.&lt;/p&gt;</info>
+        <picklistValueName>종료</picklistValueName>
+    </pathAssistantSteps>
+    <recordTypeName>Regular</recordTypeName>
+</PathAssistant>

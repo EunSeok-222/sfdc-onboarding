@@ -38,6 +38,7 @@
             <value>
                 <fullName>페널티승인대기</fullName>
                 <default>false</default>
+                <isActive>false</isActive>
                 <label>페널티승인대기</label>
             </value>
             <value>

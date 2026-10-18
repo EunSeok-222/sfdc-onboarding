@@ -8,6 +8,7 @@
  * --------------------------------------------------------------------------------------
  *  2026.10.13   Kai        Created     최초 작성 — Default 기준 조회
  *  2026.10.18   Kai        Updated     항목 미흡 기준(getDeficiencyRate) 추가 — 결과 항목 미흡 자동 판정용(D1)
+ *  2026.10.18   Kai        Updated     조회할 기준 레코드 이름을 테스트 주입구로 분리 — 「Default 레코드 없음」 분기 테스트(Step 8)
  * ======================================================================================
  *  @see         : InspectionService.cls, InspectionResultService.cls, customMetadata/InspectionRule.Default.md-meta.xml
  *  @note        : getInstance()는 SOQL 한도를 쓰지 않는다. 기준이 '가맹점 등급별'로 나뉘면 이 클래스만 바뀐다
@@ -19,6 +20,10 @@ public with sharing class InspectionRuleSelector {
   @TestVisible
   private static InspectionRule__mdt ruleOverride;
 
+  // NOTE: 테스트에서 없는 이름을 넣어 「레코드 없음」 분기를 재현하기 위한 주입구. 운영에서는 항상 Default
+  @TestVisible
+  private static String ruleDeveloperName = DEFAULT_RULE;
+
   /**
    * @description : 기본 점검 기준을 반환한다. 레코드가 없으면 판정을 엉뚱하게 내리는 대신 즉시 실패한다.
    * @author      : 이은석(Kai) | 2026.10.13
@@ -28,12 +33,14 @@ public with sharing class InspectionRuleSelector {
     if (ruleOverride != null) {
       return ruleOverride;
     }
-    InspectionRule__mdt rule = InspectionRule__mdt.getInstance(DEFAULT_RULE);
+    InspectionRule__mdt rule = InspectionRule__mdt.getInstance(
+      ruleDeveloperName
+    );
     if (rule == null) {
       // WARN: CMDT 레코드는 배포에 포함된다. 여기 오면 배포 누락이다 — 조용히 기본값을 쓰면 잘못된 판정이 저장된다
       throw new InspectionRuleException(
         '점검 기준(InspectionRule__mdt) \'' +
-          DEFAULT_RULE +
+          ruleDeveloperName +
           '\' 레코드가 없습니다. 배포 누락을 확인하세요.'
       );
     }
@@ -51,7 +58,7 @@ public with sharing class InspectionRuleSelector {
       // WARN: 비어 있는데 0으로 보면 모든 항목이 정상, 1로 보면 만점 외 전부 미흡이 된다 — 어느 쪽도 조용히 저장되면 안 된다
       throw new InspectionRuleException(
         '점검 기준(InspectionRule__mdt) \'' +
-          DEFAULT_RULE +
+          ruleDeveloperName +
           '\'의 항목 미흡 기준(DeficiencyRate__c)이 비어 있습니다.'
       );
     }

@@ -7,6 +7,7 @@
  *  Date         Modifier   Status      Description
  * --------------------------------------------------------------------------------------
  *  2026.10.13   Kai        Created     최초 작성
+ *  2026.10.18   Kai        Updated     「기준 레코드 없음」 예외 테스트 추가(ruleDeveloperName 주입, Step 8)
  * ======================================================================================
  *  @note        : Custom Metadata는 SeeAllData와 무관하게 테스트에서도 배포된 레코드가 보인다.
  *                 Apex 쪽은 ruleOverride로 값을 바꿀 수 있지만, Flow는 항상 배포된 레코드를 읽는다
@@ -25,6 +26,25 @@ private class InspectionRuleSelectorTest {
         rule.PassRate__c +
         ' / 시정선 ' +
         rule.CorrectionRate__c
+    );
+  }
+
+  // 기준 레코드가 없으면(배포 누락) 기본값으로 판정하지 않고 원인을 알려 주며 즉시 실패한다
+  @IsTest
+  static void missingRule_throwsWithRuleName() {
+    InspectionRuleSelector.ruleDeveloperName = 'NoSuchRule';
+
+    InspectionRuleSelector.InspectionRuleException caught;
+    try {
+      InspectionRuleSelector.getDefaultRule();
+    } catch (InspectionRuleSelector.InspectionRuleException e) {
+      caught = e;
+    }
+
+    Assert.isNotNull(caught, '기준 레코드가 없으면 예외가 나야 한다');
+    Assert.isTrue(
+      caught.getMessage().contains('NoSuchRule'),
+      '어떤 기준이 없는지 알려 준다: ' + caught.getMessage()
     );
   }
 

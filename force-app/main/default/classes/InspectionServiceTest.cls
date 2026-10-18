@@ -8,6 +8,7 @@
  *  2026.10.12   Kai        Created     최초 작성 — applyJudgements 경계값
  *  2026.10.12   Kai        Updated     메서드명 축약 (Apex 식별자는 ASCII만 허용 — 설명은 주석으로)
  *  2026.10.14   Kai        Updated     판정 필드 편집 FLS 테스트 추가 (SV runAs · stripInaccessible · USER_MODE)
+ *  2026.10.18   Kai        Updated     judgeInspections · countInspectionsByFranchise(D4 집계 · 일괄 처리) 테스트 추가(Step 8)
  * ======================================================================================
  *  @see         : InspectionService.cls, docs/d6-test-scenarios.md
  *  @note        : applyJudgements는 SOQL · DML이 없어 레코드를 insert하지 않고 검증한다.
@@ -236,6 +237,78 @@ private class InspectionServiceTest {
       [SELECT Judgement__c FROM Inspection__c WHERE Id = :inspectionId]
       .Judgement__c,
       '관리자 저장 후 판정이 반영되어야 한다'
+    );
+  }
+
+  // 증명: judgeInspections(D4 일괄 처리) — 결과 항목이 있는 점검만 판정을 저장하고, 배점 합계 0인 점검은 건너뛴다.
+  //       빈 집합 · null이면 SOQL · DML 없이 끝난다
+  @IsTest
+  static void judgeInspections_savesOnlyScoredInspections() {
+    List<Inspection__c> inspections = TestDataFactory.createInspections(
+      TestDataFactory.createFranchises(2, true),
+      1,
+      TestDataFactory.STATUS_SCHEDULED,
+      TestDataFactory.RT_REGULAR,
+      Date.today(),
+      true
+    );
+    Inspection__c scored = inspections[0];
+    Inspection__c empty = inspections[1];
+    // NOTE: 34 / 40 = 85% · 필수 미흡 없음 → 합격. 점검예정이라 트리거는 판정을 다시 계산하지 않는다
+    insert TestDataFactory.createResults(
+      scored,
+      TestDataFactory.createTemplateItems(4, 1, 10, true),
+      new List<Decimal>{ 9, 9, 8, 8 },
+      false
+    );
+
+    Test.startTest();
+    Integer dmlBefore = Limits.getDmlStatements();
+    InspectionService.judgeInspections(new Set<Id>());
+    InspectionService.judgeInspections(null);
+    Integer dmlForEmpty = Limits.getDmlStatements() - dmlBefore;
+    InspectionService.judgeInspections(new Set<Id>{ scored.Id, empty.Id });
+    Test.stopTest();
+
+    Map<Id, Inspection__c> savedById = new Map<Id, Inspection__c>(
+      [SELECT Judgement__c FROM Inspection__c WHERE Id IN :inspections]
+    );
+    Assert.areEqual(0, dmlForEmpty, '빈 집합 · null이면 저장하지 않는다');
+    Assert.areEqual(
+      JUDGEMENT_PASS,
+      savedById.get(scored.Id).Judgement__c,
+      '결과 항목이 있는 점검은 판정을 저장한다'
+    );
+    Assert.isNull(
+      savedById.get(empty.Id).Judgement__c,
+      '배점 합계 0(결과 항목 없음)은 판정하지 않는다'
+    );
+  }
+
+  // 증명: countInspectionsByFranchise(D4 집계) — 가맹점별 점검 건수, 점검이 없는 가맹점은 0
+  @IsTest
+  static void countInspectionsByFranchise_includesZero() {
+    List<Account> franchises = TestDataFactory.createFranchises(2, true);
+    TestDataFactory.createInspections(
+      new List<Account>{ franchises[0] },
+      3,
+      TestDataFactory.STATUS_SCHEDULED,
+      TestDataFactory.RT_REGULAR,
+      Date.today(),
+      true
+    );
+
+    Test.startTest();
+    Map<Id, Integer> countsByFranchiseId = InspectionService.countInspectionsByFranchise(
+      new Map<Id, Account>(franchises).keySet()
+    );
+    Test.stopTest();
+
+    Assert.areEqual(3, countsByFranchiseId.get(franchises[0].Id), '점검 3건');
+    Assert.areEqual(
+      0,
+      countsByFranchiseId.get(franchises[1].Id),
+      '점검이 없는 가맹점도 0으로 포함'
     );
   }
 

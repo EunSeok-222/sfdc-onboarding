@@ -9,11 +9,15 @@
         <enabled>true</enabled>
     </classAccesses>
     <classAccesses>
+        <apexClass>InspectionResultController</apexClass>
+        <enabled>true</enabled>
+    </classAccesses>
+    <classAccesses>
         <apexClass>InspectionListController</apexClass>
         <enabled>true</enabled>
     </classAccesses>
     <description
-  >26-10-13 내 점검 목록(inspectionList) Apex 호출 권한. 조회 범위는 with sharing · USER_MODE가 사용자 권한으로 제한 by Kai / 26-10-14 점검 상세 시정조치 목록(CorrectiveActionController) 호출 권한 추가 by Kai / 26-10-14 매장 이력(FranchiseHistoryController) 호출 권한 추가 by Kai</description>
+  >26-10-13 내 점검 목록 Apex 호출 권한(조회 범위는 with sharing · USER_MODE) by Kai / 26-10-14 시정조치 목록 · 매장 이력 컨트롤러 추가 by Kai / 26-10-18 점검 결과 입력(InspectionResultController) 추가 by Kai</description>
     <hasActivationRequired>false</hasActivationRequired>
     <label>점검 목록 조회</label>
 </PermissionSet>

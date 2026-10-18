@@ -1,0 +1,35 @@
+/* ======================================================================================
+ * @description : 점검 결과 입력 스타일 — 행 구분선 · 미입력 행 강조 · 점수 칸 폭
+ * @layer       : LWC
+ * @author      : 이은석(Kai)
+ * ======================================================================================
+ *  Date         Modifier   Status      Description
+ * --------------------------------------------------------------------------------------
+ *  2026.10.18   Kai        Created     최초 작성 — 26-10-18 SC-02 점검 결과 입력
+ * ======================================================================================
+ *  @note        : 간격 · 모서리는 --wdls-g-* 토큰 (공통 시트가 없어 var() 기본값을 함께 둔다)
+ * ======================================================================================*/
+:host {
+  --wsds-result-line: #e5e5e5;
+  --wsds-result-blank-bg: #fef6e6;
+}
+
+.result-group {
+  margin-bottom: var(--wdls-g-spacing-md, 16px);
+}
+
+.result-row {
+  padding: var(--wdls-g-spacing-xs, 4px) var(--wdls-g-spacing-sm, 8px);
+  border-bottom: var(--wdls-g-border-width-default, 1px) solid
+    var(--wsds-result-line);
+  border-radius: var(--wdls-g-border-radius-sm, 4px);
+}
+
+/* DESC: 점수가 비어 있는 행(미입력) — 저장 전에 눈에 띄게 */
+.result-row_blank {
+  background: var(--wsds-result-blank-bg);
+}
+
+.score-input {
+  width: 5rem;
+}

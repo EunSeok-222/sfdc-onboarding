@@ -1,0 +1,74 @@
+<template>
+  <lightning-card title="점검 결과 입력" icon-name="standard:task2">
+    <div slot="actions" class="slds-grid slds-grid_vertical-align-center">
+      <span class="slds-text-body_small slds-m-right_small"
+        >{filledSummary}</span
+      >
+      <template lwc:if={showSaveButton}>
+        <lightning-button
+          label="저장"
+          variant="brand"
+          onclick={handleSave}
+          disabled={isSaveDisabled}
+        ></lightning-button>
+      </template>
+    </div>
+    <div class="slds-var-p-horizontal_medium">
+      <template lwc:if={hasResults}>
+        <template for:each={groups} for:item="group">
+          <div key={group.category} class="result-group">
+            <h3 class="slds-text-heading_small slds-var-p-vertical_x-small">
+              {group.title}
+            </h3>
+            <template for:each={group.rows} for:item="row">
+              <div key={row.id} class={row.rowClass}>
+                <div
+                  class="slds-col slds-size_1-of-1 slds-medium-size_6-of-12 slds-var-p-vertical_xx-small"
+                >
+                  <span>{row.itemName}</span>
+                  <template lwc:if={row.isRequired}>
+                    <lightning-badge
+                      label="필수"
+                      class="slds-m-left_x-small"
+                    ></lightning-badge>
+                  </template>
+                </div>
+                <div
+                  class="slds-col slds-size_1-of-2 slds-medium-size_3-of-12 slds-grid slds-grid_vertical-align-center"
+                >
+                  <lightning-input
+                    type="number"
+                    label={row.itemName}
+                    variant="label-hidden"
+                    min="0"
+                    max={row.maxScore}
+                    step="1"
+                    value={row.score}
+                    data-id={row.id}
+                    disabled={isReadOnly}
+                    onchange={handleScoreChange}
+                    class="score-input"
+                  ></lightning-input>
+                  <span class="slds-m-left_x-small">/ {row.maxScore}</span>
+                </div>
+                <div
+                  class="slds-col slds-size_1-of-2 slds-medium-size_3-of-12 slds-text-align_right"
+                >
+                  <template lwc:if={row.isDeficient}>
+                    <lightning-badge
+                      label="미흡"
+                      class="slds-theme_error"
+                    ></lightning-badge>
+                  </template>
+                </div>
+              </div>
+            </template>
+          </div>
+        </template>
+      </template>
+      <template lwc:elseif={isLoaded}>
+        <p class="slds-text-color_weak">결과 항목이 없습니다.</p>
+      </template>
+    </div>
+  </lightning-card>
+</template>

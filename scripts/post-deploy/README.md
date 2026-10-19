@@ -27,10 +27,25 @@
 4. **필드 권한(프로필)** — 프로필은 레포에 없어(org에서 관리) 새 필드의 프로필 권한은 이 패키지로 배포한다.
    `fls-corrective-action-formula` = 시정조치 수식 필드 3개(가맹점 · 점검 항목 · 점검) 읽기 권한.
    프로필 4개(System Administrator · SV · 권역팀장 · 조회전용)에 필드 권한 3개만 들어 있어 다른 권한은 바뀌지 않는다(배포 전후 프로필별 +3 확인).
+   `fls-inspection-score-rate` = 점검 점수율(fmScoreRate__c) 읽기 권한(같은 프로필 4개, 필드 권한 1개).
    먼저 `--dry-run`을 붙여 확인한 뒤 실행한다.
+
    ```bash
    sf project deploy start --metadata-dir scripts/post-deploy/fls-corrective-action-formula -o kai-dev
+   sf project deploy start --metadata-dir scripts/post-deploy/fls-inspection-score-rate -o kai-dev
    ```
+
+   **스케줄 등록(관리자, Execute Anonymous)** — 등록 시점은 Kai가 정한다(시연 데이터 보호)
+
+   | 스케줄                         | 명령                                                                                                                     | 시점                                                                                         |
+   | ------------------------------ | ------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------- |
+   | 정기점검 자동 생성(매일 06:00) | `System.schedule('정기점검 자동 생성', RegularInspectionScheduler.CRON_DAILY_6AM, new RegularInspectionScheduler());`    | 발표 · 시연 데이터 정리가 끝난 뒤. 등록 전 전체 실행 금지(활성 가맹점마다 점검예정 1건 생성) |
+   | 물류 통보 깨우기(매시 정각)    | `System.schedule('물류 통보 깨우기', LogisticsNotifyWakeUpScheduler.CRON_HOURLY, new LogisticsNotifyWakeUpScheduler());` | 배포 직후 가능 — 처리할 로그가 없으면 이벤트를 쌓지 않는다                                   |
+
+   **알림** — 알림 유형 「점검 운영 알림」(`InspectionOperationAlert`)은 메타데이터로 배포된다(데스크톱 · 모바일).
+   공개 그룹 「연동 알림 수신자」(`IntegrationAlertRecipients`)는 구성원이 배포되지 않으므로 Setup → 공개 그룹에서 연동 실패 알림을
+   받을 사람을 넣는다(kai-dev는 10/19 Kai 추가). 시정 지연 · 불합격 2회 연속 알림은 점검 소유자의 Manager가 받으므로 5번 Manager 설정이 전제다.
+
 5. **사용자 Manager** — 승인 단계 「상위 관리자 승인」은 페널티 소유자의 Manager로 간다.
    - SV의 Manager = 권역팀장 (SV 소유 페널티 → 권역팀장 승인)
    - 권역팀장의 Manager = 영업관리팀장 (공급 제한 승인 경로 — 권역팀장 소유 페널티 → 영업관리팀장 승인)
@@ -52,5 +67,10 @@
    | 「출고 제한 수신」 `SupplyRestrictionApiAccess`  | 물류 연동 사용자          | IF-001 수신 API(Salesforce Integration 라이선스)                                                    |
    | 「출고 제한 관리」 `SupplyRestrictionManagement` | 물류 담당                 | 처리 상태 변경 · 회신 오류 읽기                                                                     |
    | 「점검 회신」 `InspectionCallbackAccess`         | 처리 상태를 바꾸는 사용자 | Principal 접근 + **User External Credential Read**. 없으면 회신이 「전송실패 · 연결 실패」로 남는다 |
-4. **스모크** — 「점검 회신」을 가진 물류 담당 계정으로 출고 제한을 반영완료로 저장 → 회신 상태 「전송완료」 · kai-dev 수신 로그(IF-004) 확인.
+4. **관리자 프로필(프로필은 레포에 없어 패키지로 배포)** — 앱 「가상 물류 시스템」 표시 · 출고 제한 탭 · 회신 상태 읽기 전용.
+   경로(Path) 설정은 `logistics/main/default/settings`에 들어 있어 배포만 하면 켜진다.
+   ```bash
+   sf project deploy start --metadata-dir scripts/post-deploy/logistics-admin-profile -o hankki-logistics
+   ```
+5. **스모크** — 「점검 회신」을 가진 물류 담당 계정으로 출고 제한을 반영완료로 저장 → 회신 상태 「전송완료」 · kai-dev 수신 로그(IF-004) 확인.
    물류 담당 계정이 없으면 빈 본문 인증 확인 호출(kai-dev가 400으로 거절, 기록 없음)로 인증 경로만 먼저 확인한다.

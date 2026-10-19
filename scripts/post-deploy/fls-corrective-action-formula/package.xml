@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<Package xmlns="http://soap.sforce.com/2006/04/metadata">
+    <types>
+        <members>Admin</members>
+        <members>가맹점점검 SV</members>
+        <members>가맹점점검 권역팀장</members>
+        <members>가맹점점검 조회전용(경영진)</members>
+        <name>Profile</name>
+    </types>
+    <version>67.0</version>
+</Package>

@@ -24,11 +24,18 @@
    | 「물류 결과 수신」 `LogisticsResultAccess`        | 물류 연동 처리             | IF-004 수신 API                                                        |
    | 「물류 통보 요청」 `LogisticsNotifyRequestAccess` | 공급 제한 승인자(권역팀장) | 없으면 승인 시 이벤트 발행 실패가 로그에 남는다                        |
    | 「인터페이스 로그 조회」 `PenaltyLogisticsAccess` | SV · 권역팀장 · 관리자     | 없으면 로그 소유자가 되지 못한다(규칙 B)                               |
-4. **사용자 Manager** — 승인 단계 「상위 관리자 승인」은 페널티 소유자의 Manager로 간다.
+4. **필드 권한(프로필)** — 프로필은 레포에 없어(org에서 관리) 새 필드의 프로필 권한은 이 패키지로 배포한다.
+   `fls-corrective-action-formula` = 시정조치 수식 필드 3개(가맹점 · 점검 항목 · 점검) 읽기 권한.
+   프로필 4개(System Administrator · SV · 권역팀장 · 조회전용)에 필드 권한 3개만 들어 있어 다른 권한은 바뀌지 않는다(배포 전후 프로필별 +3 확인).
+   먼저 `--dry-run`을 붙여 확인한 뒤 실행한다.
+   ```bash
+   sf project deploy start --metadata-dir scripts/post-deploy/fls-corrective-action-formula -o kai-dev
+   ```
+5. **사용자 Manager** — 승인 단계 「상위 관리자 승인」은 페널티 소유자의 Manager로 간다.
    - SV의 Manager = 권역팀장 (SV 소유 페널티 → 권역팀장 승인)
    - 권역팀장의 Manager = 영업관리팀장 (공급 제한 승인 경로 — 권역팀장 소유 페널티 → 영업관리팀장 승인)
-5. **점검표** — `scripts/apex/inspectionTemplateReplace.apex` 1회(20항목 · 100점 · 위생 필수 6, 다시 실행해도 같은 결과).
-6. **스모크** — 권역팀장 계정으로 공급 제한 페널티 승인 → 인터페이스 로그 IF-001 「성공」 · 접수번호 확인(전송은 물류 연동 처리).
+6. **점검표** — `scripts/apex/inspectionTemplateReplace.apex` 1회(20항목 · 100점 · 위생 필수 6, 다시 실행해도 같은 결과).
+7. **스모크** — 권역팀장 계정으로 공급 제한 페널티 승인 → 인터페이스 로그 IF-001 「성공」 · 접수번호 확인(전송은 물류 연동 처리).
 
 ## hankki-logistics
 

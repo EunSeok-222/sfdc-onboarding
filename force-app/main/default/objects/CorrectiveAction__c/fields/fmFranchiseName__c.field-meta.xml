@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>fmFranchiseName__c</fullName>
+    <description
+  >26-10-19 시정조치의 가맹점명(결과 항목 → 점검 → 가맹점) — 목록 · 강조 패널에서 어느 매장 건인지 보이게(리허설 2회차) by Kai</description>
+    <externalId>false</externalId>
+    <formula>InspectionResult__r.Inspection__r.Franchise__r.Name</formula>
+    <formulaTreatBlanksAs>BlankAsBlank</formulaTreatBlanksAs>
+    <label>가맹점</label>
+    <required>false</required>
+    <type>Text</type>
+    <unique>false</unique>
+</CustomField>

@@ -2,6 +2,9 @@
 <ListView xmlns="http://soap.sforce.com/2006/04/metadata">
     <fullName>OverdueCorrectiveActions</fullName>
     <columns>NAME</columns>
+    <columns>fmFranchiseName__c</columns>
+    <columns>fmItemName__c</columns>
+    <columns>fmInspectionLink__c</columns>
     <columns>InspectionResult__c</columns>
     <columns>Status__c</columns>
     <columns>DueDate__c</columns>

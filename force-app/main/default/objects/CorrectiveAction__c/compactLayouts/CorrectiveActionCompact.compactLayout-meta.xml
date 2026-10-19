@@ -2,10 +2,13 @@
 <CompactLayout xmlns="http://soap.sforce.com/2006/04/metadata">
     <fullName>CorrectiveActionCompact</fullName>
     <fields>Name</fields>
-    <fields>InspectionResult__c</fields>
+    <fields>fmFranchiseName__c</fields>
+    <fields>fmItemName__c</fields>
+    <fields>fmInspectionLink__c</fields>
     <fields>Status__c</fields>
     <fields>DueDate__c</fields>
     <fields>CompletedDate__c</fields>
     <fields>RequiresRevisit__c</fields>
+    <fields>InspectionResult__c</fields>
     <label>시정조치 강조 패널</label>
 </CompactLayout>

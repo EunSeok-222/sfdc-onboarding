@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<PathAssistant xmlns="http://soap.sforce.com/2006/04/metadata">
+    <active>true</active>
+    <entityName>SupplyRestriction__c</entityName>
+    <fieldName>Status__c</fieldName>
+    <masterLabel>출고 제한 처리 상태</masterLabel>
+    <pathAssistantSteps>
+        <fieldNames>StoreCode__c</fieldNames>
+        <fieldNames>StartDate__c</fieldNames>
+        <fieldNames>EndDate__c</fieldNames>
+        <info
+    >&lt;p&gt;점검 시스템(IF-001)이 보낸 출고 제한입니다. 기간 동안 출고를 막을 수 있는지 확인하고 「편집」에서 처리 상태를 반영완료 또는 반영거절로 바꿔 저장합니다. 회신 상태는 직접 바꾸지 않습니다.&lt;/p&gt;</info>
+        <picklistValueName>접수</picklistValueName>
+    </pathAssistantSteps>
+    <pathAssistantSteps>
+        <fieldNames>ProcessedAt__c</fieldNames>
+        <fieldNames>CallbackStatus__c</fieldNames>
+        <fieldNames>CallbackError__c</fieldNames>
+        <info
+    >&lt;p&gt;출고 제한을 반영했습니다. 저장하면 처리 일시가 채워지고 결과가 점검 시스템에 자동 회신(IF-004)됩니다. 회신 상태가 전송완료인지 확인합니다.&lt;/p&gt;</info>
+        <picklistValueName>반영완료</picklistValueName>
+    </pathAssistantSteps>
+    <pathAssistantSteps>
+        <fieldNames>ResultMessage__c</fieldNames>
+        <fieldNames>CallbackStatus__c</fieldNames>
+        <fieldNames>CallbackError__c</fieldNames>
+        <info
+    >&lt;p&gt;반영하지 못한 경우입니다. 결과 메시지에 거절 사유를 반드시 적습니다. 저장하면 사유와 함께 점검 시스템에 회신됩니다.&lt;/p&gt;</info>
+        <picklistValueName>반영거절</picklistValueName>
+    </pathAssistantSteps>
+    <recordTypeName>__MASTER__</recordTypeName>
+</PathAssistant>

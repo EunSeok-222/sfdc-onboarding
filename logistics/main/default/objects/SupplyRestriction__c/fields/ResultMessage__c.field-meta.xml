@@ -1,7 +1,9 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
     <fullName>ResultMessage__c</fullName>
-    <description>26-10-16 처리 결과 설명(반영거절 사유 등) by Kai</description>
+    <description
+  >26-10-16 처리 결과 설명(반영거절 사유 등) by Kai / 26-10-19 도움말 추가 by Kai</description>
+    <inlineHelpText>반영거절이면 필수</inlineHelpText>
     <label>결과 메시지</label>
     <length>255</length>
     <required>false</required>

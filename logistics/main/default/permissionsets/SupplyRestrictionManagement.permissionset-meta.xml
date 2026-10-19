@@ -1,14 +1,14 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <PermissionSet xmlns="http://soap.sforce.com/2006/04/metadata">
     <description
-  >26-10-16 출고 제한 조회 · 처리(반영완료 · 반영거절). 물류 org 관리자 · 물류 담당용, 라이선스 없음 by Kai / 26-10-18 회신 오류 읽기 추가 by Kai</description>
+  >26-10-16 출고 제한 조회 · 처리(반영완료 · 반영거절). 물류 org 관리자 · 물류 담당용, 라이선스 없음 by Kai / 26-10-18 회신 오류 읽기 추가 by Kai / 26-10-19 회신 상태 읽기 전용(회신 Queueable만 기록) by Kai</description>
     <fieldPermissions>
         <editable>false</editable>
         <field>SupplyRestriction__c.CallbackError__c</field>
         <readable>true</readable>
     </fieldPermissions>
     <fieldPermissions>
-        <editable>true</editable>
+        <editable>false</editable>
         <field>SupplyRestriction__c.CallbackStatus__c</field>
         <readable>true</readable>
     </fieldPermissions>

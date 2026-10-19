@@ -9,6 +9,7 @@
  *  2026.10.12   Kai        Updated     메서드명 축약 (Apex 식별자는 ASCII만 허용 — 설명은 주석으로)
  *  2026.10.14   Kai        Updated     판정 필드 편집 FLS 테스트 추가 (SV runAs · stripInaccessible · USER_MODE)
  *  2026.10.18   Kai        Updated     judgeInspections · countInspectionsByFranchise(D4 집계 · 일괄 처리) 테스트 추가(Step 8)
+ *  2026.10.19   Kai        Updated     정기점검 불합격 2회 연속 알림 — 실제 판정 경로 · 무알림 · 직전 점검 선택 · 비정기 · 벌크 200
  * ======================================================================================
  *  @see         : InspectionService.cls, docs/d6-test-scenarios.md
  *  @note        : applyJudgements는 SOQL · DML이 없어 레코드를 insert하지 않고 검증한다.
@@ -310,6 +311,283 @@ private class InspectionServiceTest {
       countsByFranchiseId.get(franchises[1].Id),
       '점검이 없는 가맹점도 0으로 포함'
     );
+  }
+
+  // ---------------------------------------------------------------- 불합격 2회 연속 알림 (BR-08 일부)
+
+  // 증명: 필수 미흡으로 점검완료 → 판정 불합격, 직전 정기점검도 불합격 → 점검 소유자의 Manager에게 알림(직전 번호 · 공급 제한 검토)
+  @IsTest
+  static void consecutiveFail_realJudgementPath_alertsOwnersManager() {
+    User manager = TestDataFactory.createRegionManagerUser(
+      '연속불합격팀장',
+      true
+    );
+    User sv = TestDataFactory.createSvUser('연속불합격SV', false);
+    sv.ManagerId = manager.Id;
+    insert sv;
+    Account franchise = TestDataFactory.createFranchises(1, true)[0];
+    Inspection__c previous = insertRegular(
+      franchise,
+      sv.Id,
+      Date.today().addDays(-30),
+      TestDataFactory.STATUS_COMPLETED,
+      JUDGEMENT_FAIL
+    );
+    Inspection__c current = insertRegular(
+      franchise,
+      sv.Id,
+      Date.today(),
+      TestDataFactory.STATUS_SCHEDULED,
+      null
+    );
+    // NOTE: 필수 항목 1개 · 10점 중 2점 → 결과 항목 트리거가 미흡, 점검완료 때 판정 불합격(BR-03)
+    TestDataFactory.createResults(
+      current,
+      TestDataFactory.createTemplateItems(1, 1, 10, true),
+      new List<Decimal>{ 2 },
+      true
+    );
+
+    Test.startTest();
+    update new Inspection__c(
+      Id = current.Id,
+      Status__c = TestDataFactory.STATUS_COMPLETED
+    );
+    Test.stopTest();
+
+    Assert.areEqual(
+      JUDGEMENT_FAIL,
+      [SELECT Judgement__c FROM Inspection__c WHERE Id = :current.Id]
+      .Judgement__c,
+      '전제: 필수 미흡이라 불합격'
+    );
+    Assert.areEqual(
+      1,
+      OperationAlertService.attemptedAlerts.size(),
+      '알림 1건'
+    );
+    OperationAlertService.Alert alert = OperationAlertService.attemptedAlerts[0];
+    Assert.areEqual(current.Id, alert.targetId, '대상 = 이번 점검');
+    Assert.isTrue(
+      alert.recipientIds.contains(manager.Id),
+      '수신자 = 점검 소유자의 Manager'
+    );
+    String previousNo = [SELECT Name FROM Inspection__c WHERE Id = :previous.Id]
+    .Name;
+    Assert.isTrue(
+      alert.body.contains(previousNo) && alert.body.contains('공급 제한 검토'),
+      '본문에 직전 점검 번호 · 공급 제한 검토: ' + alert.body
+    );
+  }
+
+  // 증명: 직전이 합격이면 알리지 않고, 이미 불합격인 점검을 다시 저장해도 다시 알리지 않는다
+  @IsTest
+  static void consecutiveFail_previousPassedOrResave_noAlert() {
+    List<Account> franchises = TestDataFactory.createFranchises(2, true);
+    insertRegular(
+      franchises[0],
+      null,
+      Date.today().addDays(-30),
+      TestDataFactory.STATUS_COMPLETED,
+      JUDGEMENT_PASS
+    );
+    Inspection__c afterPass = insertRegular(
+      franchises[0],
+      null,
+      Date.today(),
+      TestDataFactory.STATUS_COMPLETED,
+      null
+    );
+    insertRegular(
+      franchises[1],
+      null,
+      Date.today().addDays(-30),
+      TestDataFactory.STATUS_COMPLETED,
+      JUDGEMENT_FAIL
+    );
+    Inspection__c alreadyFailed = insertRegular(
+      franchises[1],
+      null,
+      Date.today(),
+      TestDataFactory.STATUS_COMPLETED,
+      JUDGEMENT_FAIL
+    );
+
+    Test.startTest();
+    update new List<Inspection__c>{
+      new Inspection__c(Id = afterPass.Id, Judgement__c = JUDGEMENT_FAIL),
+      new Inspection__c(Id = alreadyFailed.Id, Judgement__c = JUDGEMENT_FAIL)
+    };
+    Test.stopTest();
+
+    Assert.areEqual(
+      0,
+      OperationAlertService.attemptedAlerts.size(),
+      '직전 합격 · 판정 그대로는 알림 없음'
+    );
+  }
+
+  // 증명: 직전 점검 = 점검예정 · 비정기 · 더 늦은 점검을 뺀 가장 최근 정기점검. 그 직전이 합격이면(그 앞이 불합격이어도) 알리지 않는다
+  @IsTest
+  static void consecutiveFail_previousSelection_skipsScheduledOtherTypesAndOlder() {
+    Account franchise = TestDataFactory.createFranchises(1, true)[0];
+    insertRegular(
+      franchise,
+      null,
+      Date.today().addDays(-60),
+      TestDataFactory.STATUS_COMPLETED,
+      JUDGEMENT_FAIL
+    );
+    insertRegular(
+      franchise,
+      null,
+      Date.today().addDays(-30),
+      TestDataFactory.STATUS_COMPLETED,
+      JUDGEMENT_PASS
+    );
+    insertRegular(
+      franchise,
+      null,
+      Date.today().addDays(-10),
+      TestDataFactory.STATUS_SCHEDULED,
+      null
+    );
+    Inspection__c unannounced = TestDataFactory.createInspections(
+      new List<Account>{ franchise },
+      1,
+      TestDataFactory.STATUS_COMPLETED,
+      TestDataFactory.RT_UNANNOUNCED,
+      Date.today().addDays(-5),
+      false
+    )[0];
+    unannounced.Judgement__c = JUDGEMENT_FAIL;
+    insert unannounced;
+    Inspection__c current = insertRegular(
+      franchise,
+      null,
+      Date.today(),
+      TestDataFactory.STATUS_COMPLETED,
+      null
+    );
+
+    Test.startTest();
+    update new Inspection__c(Id = current.Id, Judgement__c = JUDGEMENT_FAIL);
+    Test.stopTest();
+
+    Assert.areEqual(
+      0,
+      OperationAlertService.attemptedAlerts.size(),
+      '직전 정기점검(-30일)은 합격이라 알림 없음'
+    );
+  }
+
+  // 증명: 정기점검이 아닌 점검(불시점검)이 불합격이 돼도 이 알림 대상이 아니다
+  @IsTest
+  static void consecutiveFail_nonRegular_noAlert() {
+    Account franchise = TestDataFactory.createFranchises(1, true)[0];
+    insertRegular(
+      franchise,
+      null,
+      Date.today().addDays(-30),
+      TestDataFactory.STATUS_COMPLETED,
+      JUDGEMENT_FAIL
+    );
+    Inspection__c unannounced = TestDataFactory.createInspections(
+      new List<Account>{ franchise },
+      1,
+      TestDataFactory.STATUS_COMPLETED,
+      TestDataFactory.RT_UNANNOUNCED,
+      Date.today(),
+      true
+    )[0];
+
+    Test.startTest();
+    update new Inspection__c(
+      Id = unannounced.Id,
+      Judgement__c = JUDGEMENT_FAIL
+    );
+    Test.stopTest();
+
+    Assert.areEqual(
+      0,
+      OperationAlertService.attemptedAlerts.size(),
+      '불시점검은 대상 아님'
+    );
+  }
+
+  // 증명: 200건이 한 번에 불합격으로 바뀌어도 건마다 알림 1건, 쿼리 수는 건수와 무관하다
+  @IsTest
+  static void consecutiveFail_bulk200_alertEachConstantQueries() {
+    List<Account> franchises = TestDataFactory.createFranchises(200, true);
+    List<Inspection__c> previous = TestDataFactory.createInspections(
+      franchises,
+      1,
+      TestDataFactory.STATUS_COMPLETED,
+      TestDataFactory.RT_REGULAR,
+      Date.today().addDays(-30),
+      false
+    );
+    for (Inspection__c ins : previous) {
+      ins.Judgement__c = JUDGEMENT_FAIL;
+    }
+    insert previous;
+    List<Inspection__c> current = TestDataFactory.createInspections(
+      franchises,
+      1,
+      TestDataFactory.STATUS_COMPLETED,
+      TestDataFactory.RT_REGULAR,
+      Date.today(),
+      true
+    );
+    List<Inspection__c> updates = new List<Inspection__c>();
+    for (Inspection__c ins : current) {
+      updates.add(
+        new Inspection__c(Id = ins.Id, Judgement__c = JUDGEMENT_FAIL)
+      );
+    }
+
+    Test.startTest();
+    Integer queriesBefore = Limits.getQueries();
+    update updates;
+    Integer queriesUsed = Limits.getQueries() - queriesBefore;
+    Test.stopTest();
+
+    Assert.areEqual(
+      200,
+      OperationAlertService.attemptedAlerts.size(),
+      '200건 → 알림 200건'
+    );
+    // NOTE: 직전 점검 1 + 수신자(User) 1 + 알림 유형 1
+    Assert.isTrue(
+      queriesUsed <= 3,
+      '쿼리 수가 건수와 무관해야 한다. 실제: ' + queriesUsed
+    );
+  }
+
+  private static final String JUDGEMENT_FAIL = '불합격';
+
+  /** 정기점검 1건 — ownerId가 null이면 실행 사용자 소유 */
+  private static Inspection__c insertRegular(
+    Account franchise,
+    Id ownerId,
+    Date inspectionDate,
+    String status,
+    String judgement
+  ) {
+    Inspection__c ins = TestDataFactory.createInspections(
+      new List<Account>{ franchise },
+      1,
+      status,
+      TestDataFactory.RT_REGULAR,
+      inspectionDate,
+      false
+    )[0];
+    if (ownerId != null) {
+      ins.OwnerId = ownerId;
+    }
+    ins.Judgement__c = judgement;
+    insert ins;
+    return ins;
   }
 
   /** SV 소유 점검예정 점검 1건 (판정 재계산이 일어나지 않는 상태) */

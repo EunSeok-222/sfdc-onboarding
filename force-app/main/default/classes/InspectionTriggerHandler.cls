@@ -9,6 +9,7 @@
  *  2026.10.11   Kai        Created     최초 작성 (뼈대)
  *  2026.10.11   Kai        Updated     상태 전이 검증 · 판정 세팅 · 최근 정기점검일 재계산 연결
  *  2026.10.18   Kai        Updated     after insert — 새 정기점검(이관번호 없음 · 점검예정)에 결과 항목 자동 생성 연결(D11)
+ *  2026.10.19   Kai        Updated     after update — 정기점검 불합격 2회 연속 알림 연결(InspectionService.notifyConsecutiveFailures)
  * ======================================================================================
  *  @see         : Inspection.trigger, InspectionService.cls, InspectionResultService.cls, FranchiseInspectionDateService.cls
  * ======================================================================================*/
@@ -107,6 +108,10 @@ public with sharing class InspectionTriggerHandler {
       }
     }
     recalculateFranchiseDates(franchiseIds);
+    InspectionService.notifyConsecutiveFailures(
+      newInspections,
+      oldInspectionsById
+    );
   }
 
   /**

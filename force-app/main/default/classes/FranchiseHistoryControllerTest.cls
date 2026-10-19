@@ -7,6 +7,7 @@
  *  Date         Modifier   Status      Description
  * --------------------------------------------------------------------------------------
  *  2026.10.14   Kai        Created     최초 작성 (테스트 8건)
+ *  2026.10.19   Kai        Updated     insertActions를 결과 항목 count개 × 시정조치 1건으로 변경 — 진행 중 시정조치 중복 차단 반영
  * ======================================================================================
  *  @note        : @TestSetup을 쓰지 않는다 — TestDataFactory 점검번호(TEST-0000…)는 트랜잭션마다 0부터 다시 시작해
  *                 공용 데이터와 메서드 안 데이터가 Unique에서 충돌한다. 각 테스트가 필요한 데이터만 만든다
@@ -366,20 +367,24 @@ private class FranchiseHistoryControllerTest {
     return ins;
   }
 
-  /** 미흡 결과 항목 1건에 시정조치 count건 */
+  /** 미흡(필수) 결과 항목 count건에 시정조치 1건씩 — 같은 항목에는 진행 중 시정조치를 1건만 둘 수 있다(중복 차단) */
   private static List<CorrectiveAction__c> insertActions(
     Inspection__c ins,
     Integer count
   ) {
+    List<Decimal> scores = new List<Decimal>();
+    for (Integer i = 0; i < count; i++) {
+      scores.add(5);
+    }
     List<InspectionResult__c> results = TestDataFactory.createResults(
       ins,
-      TestDataFactory.createTemplateItems(1, 1, 10, true),
-      new List<Decimal>{ 5 },
+      TestDataFactory.createTemplateItems(count, count, 10, true),
+      scores,
       true
     );
     return TestDataFactory.createCorrectiveActions(
       results,
-      count,
+      1,
       STATUS_REQUESTED,
       Date.today().addDays(3),
       true

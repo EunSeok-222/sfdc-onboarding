@@ -8,6 +8,7 @@
  * --------------------------------------------------------------------------------------
  *  2026.10.14   Kai        Created     최초 작성 (정렬 · 점검 격리 · null · 벌크 200건 · SV runAs)
  *  2026.10.14   Kai        Updated     getDeficientResults 테스트 추가 (미흡 항목만 · 필수 항목 우선)
+ *  2026.10.19   Kai        Updated     벌크 데이터를 결과 항목 200개 × 시정조치 1건으로 변경 — 같은 항목 진행 중 시정조치 중복 차단 반영
  * ======================================================================================*/
 @IsTest
 private class CorrectiveActionControllerTest {
@@ -184,8 +185,9 @@ private class CorrectiveActionControllerTest {
       ]
       .Franchise__c
     );
+    // NOTE: 같은 결과 항목에는 진행 중 시정조치를 1건만 둘 수 있다(중복 차단) — 결과 항목 200개에 1건씩
     List<InspectionTemplateItem__c> templateItems = TestDataFactory.createTemplateItems(
-      50,
+      200,
       0,
       10,
       true
@@ -213,7 +215,7 @@ private class CorrectiveActionControllerTest {
     );
     TestDataFactory.createCorrectiveActions(
       results,
-      4,
+      1,
       STATUS_REQUESTED,
       Date.today().addDays(3),
       true

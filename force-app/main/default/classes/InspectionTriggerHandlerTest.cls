@@ -13,6 +13,7 @@
  *  2026.10.18   Kai        Updated     필수 미흡 점수를 항목 미흡 기준(배점 × 0.6)에 맞춤 — 미흡은 결과 항목 트리거가 판정
  *  2026.10.18   Kai        Updated     정기점검 생성 시 결과 항목 자동 생성 테스트 5건 추가(불시 · 이관 · 중복 · 벌크 200 · SV)(D11)
  *  2026.10.18   Kai        Updated     시정조치 생성 → 점검 시정중 자동 전환(Flow) 테스트 3건 추가(D11)
+ *  2026.10.19   Kai        Updated     시정조치 벌크 200건을 결과 항목마다 1건으로 변경 — 진행 중 시정조치 중복 차단 반영
  * ======================================================================================
  *  @see         : Inspection.trigger, FranchiseInspectionDateService.cls, InspectionService.cls
  *  @note        : 관리자로만 돌던 테스트가 SV의 FLS(최근 정기점검일 읽기 전용) 문제를 못 잡았다 → runAs 시나리오 추가
@@ -852,22 +853,39 @@ private class InspectionTriggerHandlerTest {
   // 증명: 점검 2건에 시정조치 200건을 한 번에 넣어도 두 점검 모두 시정중이 되고, 같은 점검을 여러 번 저장하지 않는다
   @isTest
   static void bulk200CorrectiveActionsOnTwoInspections_eachMovedOnce() {
-    List<Inspection__c> inspections = insertInspectionWithResult(
+    // NOTE: 같은 결과 항목에는 진행 중 시정조치를 1건만 둘 수 있다(중복 차단) — 점검 2건 × 결과 항목 100개 × 시정조치 1건
+    List<Inspection__c> inspections = TestDataFactory.createInspections(
+      TestDataFactory.createFranchises(2, true),
+      1,
       TestDataFactory.STATUS_COMPLETED,
-      2
+      TestDataFactory.RT_REGULAR,
+      Date.today(),
+      true
     );
+    List<InspectionTemplateItem__c> templates = TestDataFactory.createTemplateItems(
+      100,
+      0,
+      10,
+      true
+    );
+    List<Decimal> scores = new List<Decimal>();
+    for (Integer i = 0; i < templates.size(); i++) {
+      scores.add(5);
+    }
+    List<InspectionResult__c> results = new List<InspectionResult__c>();
+    for (Inspection__c ins : inspections) {
+      results.addAll(
+        TestDataFactory.createResults(ins, templates, scores, false)
+      );
+    }
+    insert results;
     Set<Id> inspectionIds = new Map<Id, Inspection__c>(inspections).keySet();
-    List<InspectionResult__c> results = [
-      SELECT Id
-      FROM InspectionResult__c
-      WHERE Inspection__c IN :inspectionIds
-    ];
 
     Test.startTest();
     Integer dmlBefore = Limits.getDmlStatements();
     TestDataFactory.createCorrectiveActions(
       results,
-      100,
+      1,
       '요청',
       Date.today().addDays(7),
       true

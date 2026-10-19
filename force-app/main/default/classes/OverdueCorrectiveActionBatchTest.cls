@@ -7,6 +7,7 @@
  *  Date         Modifier   Status      Description
  * --------------------------------------------------------------------------------------
  *  2026.10.12   Kai        Created     최초 작성
+ *  2026.10.19   Kai        Updated     결과 항목마다 시정조치 1건으로 데이터 변경 — 같은 항목 진행 중 시정조치 중복 차단 반영
  * ======================================================================================
  *  @note        : 배치는 Test.stopTest() 시점에 동기 실행된다. Assert는 반드시 stopTest() 뒤에 둔다
  * ======================================================================================*/
@@ -26,50 +27,39 @@ private class OverdueCorrectiveActionBatchTest {
       Date.today(),
       true
     )[0];
+    // NOTE: 같은 결과 항목에는 진행 중(요청 · 지연) 시정조치를 1건만 둘 수 있다(중복 차단) — 결과 항목 8개에 1건씩
+    Integer total = OVERDUE_COUNT + NOT_DUE_COUNT;
     List<InspectionTemplateItem__c> items = TestDataFactory.createTemplateItems(
-      1,
+      total,
       0,
       10,
       true
     );
+    List<Decimal> scores = new List<Decimal>();
+    for (Integer i = 0; i < total; i++) {
+      scores.add(5);
+    }
     List<InspectionResult__c> results = TestDataFactory.createResults(
       ins,
       items,
-      new List<Decimal>{ 5 },
+      scores,
       true
     );
 
     Date today = Date.today();
-    List<CorrectiveAction__c> actions = new List<CorrectiveAction__c>();
-    // DESC: 기한 지난 '요청' 5건 — 지연 대상
-    actions.addAll(
-      TestDataFactory.createCorrectiveActions(
-        results,
-        OVERDUE_COUNT,
-        CorrectiveActionService.STATUS_REQUESTED,
-        today.addDays(-1),
-        false
-      )
+    List<CorrectiveAction__c> actions = TestDataFactory.createCorrectiveActions(
+      results,
+      1,
+      CorrectiveActionService.STATUS_REQUESTED,
+      null,
+      false
     );
-    // DESC: 기한 내 '요청' 3건 — 오늘이 기한인 1건(경계값: DueDate < TODAY가 아님) + 내일이 기한인 2건
-    actions.addAll(
-      TestDataFactory.createCorrectiveActions(
-        results,
-        1,
-        CorrectiveActionService.STATUS_REQUESTED,
-        today,
-        false
-      )
-    );
-    actions.addAll(
-      TestDataFactory.createCorrectiveActions(
-        results,
-        NOT_DUE_COUNT - 1,
-        CorrectiveActionService.STATUS_REQUESTED,
-        today.addDays(1),
-        false
-      )
-    );
+    // DESC: 기한 지난 '요청' 5건(지연 대상) · 오늘이 기한인 1건(경계값: DueDate < TODAY가 아님) · 내일이 기한인 2건
+    for (Integer i = 0; i < actions.size(); i++) {
+      actions[i].DueDate__c = i < OVERDUE_COUNT
+        ? today.addDays(-1)
+        : (i == OVERDUE_COUNT ? today : today.addDays(1));
+    }
     insert actions; // DML 1번
   }
 

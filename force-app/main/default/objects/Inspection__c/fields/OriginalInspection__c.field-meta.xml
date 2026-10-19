@@ -2,8 +2,27 @@
 <CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
     <fullName>OriginalInspection__c</fullName>
     <deleteConstraint>SetNull</deleteConstraint>
-    <description>26-10-06 재점검이 가리키는 원래 점검 by Kai</description>
+    <description
+  >26-10-06 재점검이 가리키는 원래 점검 by Kai / 26-10-19 필수 조회 필터 — 같은 가맹점 · 재점검 제외 by Kai</description>
     <label>원 점검</label>
+    <lookupFilter>
+        <active>true</active>
+        <errorMessage
+    >같은 가맹점의 점검만 원 점검으로 고를 수 있습니다.</errorMessage>
+        <filterItems>
+            <field>Inspection__c.Franchise__c</field>
+            <operation>equals</operation>
+            <valueField>$Source.Franchise__c</valueField>
+        </filterItems>
+        <filterItems>
+            <field>Inspection__c.RecordTypeId</field>
+            <operation>notEqual</operation>
+            <value>재점검</value>
+        </filterItems>
+        <infoMessage
+    >같은 가맹점의 정기점검 · 불시점검만 표시합니다.</infoMessage>
+        <isOptional>false</isOptional>
+    </lookupFilter>
     <referenceTo>Inspection__c</referenceTo>
     <relationshipLabel>재점검</relationshipLabel>
     <relationshipName>OriginalInspectionInspections</relationshipName>

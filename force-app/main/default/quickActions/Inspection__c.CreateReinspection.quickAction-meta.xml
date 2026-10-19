@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<QuickAction xmlns="http://soap.sforce.com/2006/04/metadata">
+    <description
+  >26-10-19 점검 화면에서 재점검 생성 — 원 점검 = 현재 점검, 가맹점 = 현재 점검의 가맹점 자동, 점검일 · 소유자만 입력 by Kai</description>
+    <fieldOverrides>
+        <field>Franchise__c</field>
+        <formula>Inspection__c.Franchise__c</formula>
+    </fieldOverrides>
+    <label>재점검 생성</label>
+    <optionsCreateFeedItem>false</optionsCreateFeedItem>
+    <quickActionLayout>
+        <layoutSectionStyle>TwoColumnsLeftToRight</layoutSectionStyle>
+        <quickActionLayoutColumns>
+            <quickActionLayoutItems>
+                <emptySpace>false</emptySpace>
+                <field>InspectionDate__c</field>
+                <uiBehavior>Required</uiBehavior>
+            </quickActionLayoutItems>
+        </quickActionLayoutColumns>
+        <quickActionLayoutColumns>
+            <quickActionLayoutItems>
+                <emptySpace>false</emptySpace>
+                <field>OwnerId</field>
+                <uiBehavior>Edit</uiBehavior>
+            </quickActionLayoutItems>
+        </quickActionLayoutColumns>
+    </quickActionLayout>
+    <targetObject>Inspection__c</targetObject>
+    <targetParentField>OriginalInspection__c</targetParentField>
+    <targetRecordType>Inspection__c.Reinspection</targetRecordType>
+    <type>Create</type>
+</QuickAction>

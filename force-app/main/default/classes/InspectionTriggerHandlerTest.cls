@@ -13,6 +13,7 @@
  *  2026.10.18   Kai        Updated     필수 미흡 점수를 항목 미흡 기준(배점 × 0.6)에 맞춤 — 미흡은 결과 항목 트리거가 판정
  *  2026.10.18   Kai        Updated     정기점검 생성 시 결과 항목 자동 생성 테스트 5건 추가(불시 · 이관 · 중복 · 벌크 200 · SV)(D11)
  *  2026.10.18   Kai        Updated     시정조치 생성 → 점검 시정중 자동 전환(Flow) 테스트 3건 추가(D11)
+ *  2026.10.19   Kai        Updated     원 점검 조회 필터 테스트 3건 추가(같은 가맹점 저장 · 다른 가맹점 · 재점검 원 점검 차단)
  *  2026.10.19   Kai        Updated     시정조치 벌크 200건을 결과 항목마다 1건으로 변경 — 진행 중 시정조치 중복 차단 반영
  * ======================================================================================
  *  @see         : Inspection.trigger, FranchiseInspectionDateService.cls, InspectionService.cls
@@ -956,6 +957,127 @@ private class InspectionTriggerHandlerTest {
       FROM InspectionResult__c
       WHERE Inspection__c = :inspectionId
     ];
+  }
+
+  // ---------------------------------------------------------------- 원 점검 조회 필터 (OriginalInspection__c)
+  // NOTE: 필수 조회 필터는 화면뿐 아니라 Apex DML에도 걸린다 — 26-10-19 익명 실행(롤백)으로
+  //       FIELD_FILTER_VALIDATION_EXCEPTION을 확인한 뒤 케이스를 썼다
+
+  @isTest
+  static void reinspection_sameFranchiseOriginal_saves() {
+    Account store = getStore('TEST-A');
+    Inspection__c original = createInspection(
+      store,
+      TestDataFactory.STATUS_COMPLETED,
+      TestDataFactory.RT_REGULAR,
+      Date.newInstance(2026, 10, 1)
+    );
+
+    Test.startTest();
+    Database.SaveResult result = Database.insert(
+      newReinspection(store, original),
+      false
+    );
+    Test.stopTest();
+
+    Assert.isTrue(
+      result.isSuccess(),
+      '같은 가맹점의 정기점검은 원 점검으로 저장되어야 한다: ' +
+      result.getErrors()
+    );
+    Assert.areEqual(
+      original.Id,
+      [
+        SELECT OriginalInspection__c
+        FROM Inspection__c
+        WHERE Id = :result.getId()
+      ]
+      .OriginalInspection__c,
+      '원 점검이 그대로 저장되어야 한다'
+    );
+  }
+
+  @isTest
+  static void reinspection_otherFranchiseOriginal_blockedByLookupFilter() {
+    Inspection__c otherStoreOriginal = createInspection(
+      getStore('TEST-B'),
+      TestDataFactory.STATUS_COMPLETED,
+      TestDataFactory.RT_REGULAR,
+      Date.newInstance(2026, 10, 1)
+    );
+
+    Test.startTest();
+    Database.SaveResult result = Database.insert(
+      newReinspection(getStore('TEST-A'), otherStoreOriginal),
+      false
+    );
+    Test.stopTest();
+
+    assertBlockedByLookupFilter(
+      result,
+      '다른 가맹점의 점검은 원 점검으로 고를 수 없다'
+    );
+  }
+
+  @isTest
+  static void reinspection_reinspectionAsOriginal_blockedByLookupFilter() {
+    Account store = getStore('TEST-A');
+    Inspection__c original = createInspection(
+      store,
+      TestDataFactory.STATUS_COMPLETED,
+      TestDataFactory.RT_REGULAR,
+      Date.newInstance(2026, 10, 1)
+    );
+    Inspection__c firstReinspection = newReinspection(store, original);
+    insert firstReinspection;
+
+    Test.startTest();
+    Database.SaveResult result = Database.insert(
+      newReinspection(store, firstReinspection),
+      false
+    );
+    Test.stopTest();
+
+    assertBlockedByLookupFilter(
+      result,
+      '재점검은 같은 가맹점이어도 다시 원 점검이 될 수 없다'
+    );
+  }
+
+  /** 재점검 1건(점검예정 · 원 점검 지정)을 만든다 — insert하지 않는다 */
+  private static Inspection__c newReinspection(
+    Account store,
+    Inspection__c original
+  ) {
+    Inspection__c reinspection = TestDataFactory.createInspections(
+      new List<Account>{ store },
+      1,
+      TestDataFactory.STATUS_SCHEDULED,
+      TestDataFactory.RT_REINSPECTION,
+      Date.newInstance(2026, 10, 10),
+      false
+    )[0];
+    reinspection.OriginalInspection__c = original.Id;
+    return reinspection;
+  }
+
+  // DESC: 조회 필터로 막혔는지 — 저장 실패 · 상태 코드 · 필터 오류 문구를 모두 본다
+  private static void assertBlockedByLookupFilter(
+    Database.SaveResult result,
+    String reason
+  ) {
+    Assert.isFalse(result.isSuccess(), reason);
+    Database.Error error = result.getErrors()[0];
+    Assert.areEqual(
+      StatusCode.FIELD_FILTER_VALIDATION_EXCEPTION,
+      error.getStatusCode(),
+      '조회 필터 오류여야 한다'
+    );
+    Assert.areEqual(
+      '같은 가맹점의 점검만 원 점검으로 고를 수 있습니다.',
+      error.getMessage(),
+      '필터 오류 문구'
+    );
   }
 
   private static Account getStore(String storeCode) {

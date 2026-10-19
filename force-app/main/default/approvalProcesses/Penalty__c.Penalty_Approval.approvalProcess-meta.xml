@@ -16,6 +16,8 @@
         <field>SourceInspection__c</field>
         <field>Reason__c</field>
         <field>PenaltyType__c</field>
+        <field>StartDate__c</field>
+        <field>EndDate__c</field>
     </approvalPageFields>
     <approvalStep>
         <allowDelegate>false</allowDelegate>
@@ -28,7 +30,7 @@
         <name>RegionManager_Approval</name>
     </approvalStep>
     <description
-  >26-10-07 BR-07~09 페널티 승인 by Kai / 26-10-18 승인자 = 소유자의 상위 관리자(Manager) — 권역팀장 표기 정리 by Kai</description>
+  >26-10-07 BR-07~09 페널티 승인 by Kai / 26-10-18 승인자 = 소유자의 상위 관리자(Manager) — 권역팀장 표기 정리 by Kai / 26-10-19 승인 화면에 시작일 · 종료일 추가 by Kai</description>
     <enableMobileDeviceAccess>false</enableMobileDeviceAccess>
     <entryCriteria>
         <criteriaItems>

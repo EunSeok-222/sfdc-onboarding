@@ -11,6 +11,7 @@
  *  2026.10.17   Kai        Updated     로그 소유자 규칙 두 경우(SV 읽기 권한 유무) · 큐 밖 실행 시 다음 job · 지연 job 추가
  *  2026.10.17   Kai        Updated     승인 시나리오 재구성 — 권한 있음(이벤트 전달 → 전송 성공) / 없음(발행 실패 기록) (Step 6 E2E 수정)
  *  2026.10.17   Kai        Updated     연동 사용자(소유자 아님 · 역할 없음) runAs로 다른 사람 소유 로그 처리 검증 추가
+ *  2026.10.19   Kai        Updated     실패 · 중단이면 「연동 알림 수신자」 그룹 알림(대상 = 페널티), 성공이면 알림 없음
  * ======================================================================================
  *  @see         : LogisticsNotifyMock.cls, Penalty__c.Penalty_Approval
  *  @note        : 처리는 이벤트 전달(Test.getEventBus().deliver()) → 이벤트 트리거 → Queueable(Test.stopTest()) 순서로 돈다.
@@ -59,6 +60,11 @@ private class LogisticsNotifyQueueableTest {
     Assert.isNull(
       LogisticsNotifyQueueable.chainedDelayMinutesInTest,
       '남은 일이 없으면 다음 job을 넣지 않는다'
+    );
+    Assert.areEqual(
+      0,
+      OperationAlertService.attemptedAlerts.size(),
+      '성공이면 연동 실패 알림을 보내지 않는다'
     );
   }
 
@@ -118,6 +124,7 @@ private class LogisticsNotifyQueueableTest {
       LogisticsNotifyQueueable.chainedDelayMinutesInTest,
       '재시도 job을 넣지 않는다'
     );
+    assertIntegrationAlert(LogisticsNotifyService.LOG_STATUS_FAILED);
   }
 
   // 증명: 재시도 3회를 다 쓴 로그(시도 3회)가 또 재시도 대상으로 실패하면 중단(시도 4회)
@@ -139,6 +146,7 @@ private class LogisticsNotifyQueueableTest {
     );
     Assert.areEqual(4, log.AttemptCount__c, '시도 4회');
     Assert.isNull(log.NextAttemptAt__c, '중단이면 다음 시도 없음');
+    assertIntegrationAlert(LogisticsNotifyService.LOG_STATUS_ABORTED);
   }
 
   // 증명: 처리 대기가 10건을 넘으면 이번 실행은 10건만 보내고 즉시 다음 job으로 넘긴다
@@ -505,6 +513,29 @@ private class LogisticsNotifyQueueableTest {
     );
     Test.getEventBus().deliver();
     Test.stopTest();
+  }
+
+  // DESC: 실패 · 중단 로그 1건 → 「연동 알림 수신자」 그룹에 알림 1건(대상 = 페널티, 제목에 상태)
+  private static void assertIntegrationAlert(String status) {
+    Assert.areEqual(
+      1,
+      OperationAlertService.attemptedAlerts.size(),
+      status + ' 1건 → 알림 1건'
+    );
+    OperationAlertService.Alert alert = OperationAlertService.attemptedAlerts[0];
+    Assert.areEqual(
+      [SELECT Penalty__c FROM IntegrationLog__c WITH SYSTEM_MODE LIMIT 1]
+      .Penalty__c,
+      alert.targetId,
+      '대상 = 페널티'
+    );
+    Assert.isTrue(
+      alert.recipientIds.contains(
+        OperationAlertService.getIntegrationAlertGroupId()
+      ),
+      '수신자 = 연동 알림 수신자 그룹'
+    );
+    Assert.isTrue(alert.title.contains(status), '제목에 상태: ' + alert.title);
   }
 
   private static IntegrationLog__c getOnlyLog() {

@@ -12,6 +12,7 @@
  *  2026.10.17   Kai        Updated     아웃박스 처리를 without sharing 내부 클래스로 분리 — 연동 사용자 0건 조회 수정(Step 6)
  *  2026.10.18   Kai        Updated     로그 소유자 판정(findLogReaders) 공개 · 비활성 사용자 제외 — IF-004 수신 로그와 공유(Step 7-A)
  *  2026.10.19   Kai        Updated     통보 전 검증에 기간 역전(시작일 > 종료일) 추가 — 검증 규칙 PeriodStartBeforeEnd와 이중 방어
+ *  2026.10.19   Kai        Updated     실패 · 중단 로그 그룹 알림(연동 알림 수신자) · 대기 로그 깨우기(wakeUpIfDue, 매시 스케줄러)
  * ======================================================================================
  *  @see         : LogisticsNotifyQueueable.cls, LogisticsNotifyEventTriggerHandler.cls, LogisticsResultService.cls,
  *                 인터페이스 정의서 V1.1 IF-001
@@ -190,8 +191,73 @@ public with sharing class LogisticsNotifyService {
       batch.add(log);
     }
     store.saveResults(batch);
+    notifyFailures(batch);
     result.nextRetryAt = store.findNextRetryAt(now);
     return result;
+  }
+
+  /**
+   * @description : 처리할 차례가 된 로그(전송대기 · 다음 시도 시각이 지난 재시도대기)가 있을 때만 깨우기 이벤트를 발행한다.
+   *                scripts/apex/logisticsNotifyWakeUp.apex와 같은 동작 — LogisticsNotifyWakeUpScheduler가 매시 부른다.
+   * @author      : 이은석(Kai) | 2026.10.19
+   * @return Boolean 이벤트를 발행했으면 true
+   **/
+  public static Boolean wakeUpIfDue() {
+    if (new OutboxStore().findDueLogs(Datetime.now(), 1).isEmpty()) {
+      return false; // NOTE: 할 일이 없으면 이벤트를 쌓지 않는다(시간당 1건씩 빈 이벤트 방지)
+    }
+    Database.SaveResult result = EventBus.publish(
+      new LogisticsNotifyEvent__e(InterfaceId__c = INTERFACE_ID)
+    );
+    if (!result.isSuccess()) {
+      System.debug(
+        LoggingLevel.WARN,
+        '깨우기 이벤트 발행 실패: ' + result.getErrors()
+      );
+    }
+    return result.isSuccess();
+  }
+
+  // DESC: 이번 실행에서 실패 · 중단으로 끝난 로그만 공개 그룹 「연동 알림 수신자」에 알린다(대상 = 페널티)
+  // NOTE: 연동 사용자 권한(Queueable)에서 돈다 — 발송이 실패해도 결과 기록은 이미 끝났다(OperationAlertService가 격리)
+  private static void notifyFailures(List<IntegrationLog__c> logs) {
+    List<IntegrationLog__c> failedLogs = new List<IntegrationLog__c>();
+    for (IntegrationLog__c log : logs) {
+      if (
+        log.Status__c == LOG_STATUS_FAILED ||
+        log.Status__c == LOG_STATUS_ABORTED
+      ) {
+        failedLogs.add(log);
+      }
+    }
+    if (failedLogs.isEmpty()) {
+      return;
+    }
+    Id groupId = OperationAlertService.getIntegrationAlertGroupId();
+    if (groupId == null) {
+      return;
+    }
+    List<OperationAlertService.Alert> alerts = new List<OperationAlertService.Alert>();
+    for (IntegrationLog__c log : failedLogs) {
+      Penalty__c penalty = log.Penalty__r;
+      alerts.add(
+        new OperationAlertService.Alert(
+          penalty != null ? penalty.Id : log.Id,
+          '물류 통보 ' +
+            log.Status__c +
+            ' — ' +
+            (penalty != null ? penalty.Franchise__r?.Name : '페널티 없음'),
+          (penalty != null ? penalty.Name + ' · ' : '') +
+            INTERFACE_ID +
+            ' ' +
+            log.Status__c +
+            ' · ' +
+            log.ErrorMessage__c,
+          new Set<String>{ groupId }
+        )
+      );
+    }
+    OperationAlertService.send(alerts);
   }
 
   // DESC: 한 번 보내고 결과를 로그 필드에 옮긴다. 헤더는 기록하지 않는다
@@ -263,6 +329,8 @@ public with sharing class LogisticsNotifyService {
           Id,
           AttemptCount__c,
           Penalty__r.Id,
+          Penalty__r.Name,
+          Penalty__r.Franchise__r.Name,
           Penalty__r.PenaltyType__c,
           Penalty__r.Status__c,
           Penalty__r.StartDate__c,

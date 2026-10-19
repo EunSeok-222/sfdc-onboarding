@@ -8,6 +8,7 @@
  * --------------------------------------------------------------------------------------
  *  2026.10.12   Kai        Created     최초 작성 — markOverdue
  *  2026.10.19   Kai        Updated     blockDuplicateOpenActions 추가 — 같은 결과 항목에 요청 · 지연 시정조치 중복 차단
+ *  2026.10.19   Kai        Updated     notifyOverdue 추가 — 지연으로 바뀐 시정조치를 점검 소유자의 Manager에게 알림
  * ======================================================================================
  *  @see         : OverdueCorrectiveActionBatch.cls, CorrectiveActionTriggerHandler.cls
  *  @note        : 시정조치는 결과 항목의 Master-Detail 자식(Controlled by Parent)이라, 저장하는 사용자는 같은 결과 항목의
@@ -108,5 +109,83 @@ public with sharing class CorrectiveActionService {
       update overdueActions; // DML 1번
     }
     return overdueActions.size();
+  }
+
+  /**
+   * @description : 「지연」으로 바뀐 시정조치마다 점검 소유자의 Manager(없으면 소유자)에게 「점검 운영 알림」을 보낸다.
+   *                문구에 가맹점 · 점검 항목 · 기한. SOQL은 건수와 무관하게 2번(시정조치 맥락 1 + 수신자 1).
+   * @author      : 이은석(Kai) | 2026.10.19
+   * @param newActions     Trigger.new (after update)
+   * @param oldActionsById Trigger.oldMap
+   **/
+  public static void notifyOverdue(
+    List<CorrectiveAction__c> newActions,
+    Map<Id, CorrectiveAction__c> oldActionsById
+  ) {
+    Set<Id> overdueIds = new Set<Id>();
+    for (CorrectiveAction__c action : newActions) {
+      if (
+        action.Status__c == STATUS_OVERDUE &&
+        oldActionsById.get(action.Id).Status__c != STATUS_OVERDUE
+      ) {
+        overdueIds.add(action.Id);
+      }
+    }
+    if (overdueIds.isEmpty()) {
+      return;
+    }
+
+    // DESC: 점검 소유자는 결과 항목 → 점검 2단 위라 Trigger.new에 없다 — 맥락(수식 필드)과 함께 1번에 조회
+    List<CorrectiveAction__c> overdueActions = [
+      SELECT
+        Id,
+        Name,
+        DueDate__c,
+        fmFranchiseName__c,
+        fmItemName__c,
+        InspectionResult__r.Inspection__r.OwnerId
+      FROM CorrectiveAction__c
+      WHERE Id IN :overdueIds
+      WITH SYSTEM_MODE
+    ];
+    Set<Id> ownerIds = new Set<Id>();
+    for (CorrectiveAction__c action : overdueActions) {
+      ownerIds.add(action.InspectionResult__r.Inspection__r.OwnerId);
+    }
+    Map<Id, Id> recipientsByOwnerId = OperationAlertService.resolveManagerRecipients(
+      ownerIds
+    );
+
+    List<OperationAlertService.Alert> alerts = new List<OperationAlertService.Alert>();
+    for (CorrectiveAction__c action : overdueActions) {
+      Id recipientId = recipientsByOwnerId.get(
+        action.InspectionResult__r.Inspection__r.OwnerId
+      );
+      if (recipientId == null) {
+        continue; // NOTE: 큐 소유(미배정) · 비활성 소유자 — 받을 사람이 없다
+      }
+      alerts.add(
+        new OperationAlertService.Alert(
+          action.Id,
+          '시정조치 지연 — ' + action.fmFranchiseName__c,
+          action.Name +
+            ' · ' +
+            action.fmItemName__c +
+            ' · 기한 ' +
+            formatDate(action.DueDate__c) +
+            '이 지났습니다.',
+          new Set<String>{ recipientId }
+        )
+      );
+    }
+    OperationAlertService.send(alerts);
+  }
+
+  private static String formatDate(Date value) {
+    return value == null
+      ? '(없음)'
+      : String.valueOf(value.month()).leftPad(2, '0') +
+        '.' +
+        String.valueOf(value.day()).leftPad(2, '0');
   }
 }

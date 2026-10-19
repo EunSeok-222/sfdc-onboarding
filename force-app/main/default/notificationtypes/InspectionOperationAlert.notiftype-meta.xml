@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<CustomNotificationType xmlns="http://soap.sforce.com/2006/04/metadata">
+    <customNotifTypeName>점검 운영 알림</customNotifTypeName>
+    <description
+  >26-10-19 시정조치 지연 · 물류 연동 실패 · 정기점검 불합격 2회 연속 알림(OperationAlertService) by Kai</description>
+    <desktop>true</desktop>
+    <masterLabel>점검 운영 알림</masterLabel>
+    <mobile>true</mobile>
+</CustomNotificationType>

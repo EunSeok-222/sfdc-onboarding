@@ -7,6 +7,7 @@
  *  Date         Modifier   Status      Description
  * --------------------------------------------------------------------------------------
  *  2026.10.19   Kai        Created     최초 작성 — 요청 · 지연 중복 차단, 완료 뒤 재요청 허용, 같은 묶음 중복, 벌크 200
+ *  2026.10.19   Kai        Updated     지연 전환 알림 — Manager 수신 · 지연이 아닌 변경 무알림 · 벌크 200
  * ======================================================================================*/
 @IsTest
 private class CorrectiveActionTriggerHandlerTest {
@@ -161,6 +162,124 @@ private class CorrectiveActionTriggerHandlerTest {
     Assert.isTrue(
       queriesUsed <= 10,
       '200건이어도 쿼리 수가 건수에 비례하면 안 된다. 실제: ' + queriesUsed
+    );
+  }
+
+  // ---------------------------------------------------------------- 지연 알림
+
+  // 증명: 지연으로 바뀌면 점검 소유자의 Manager에게 알린다 — 대상 = 시정조치, 제목에 가맹점, 본문에 번호 · 기한
+  @IsTest
+  static void overdueChange_alertsInspectionOwnersManager() {
+    User manager = TestDataFactory.createRegionManagerUser(
+      '지연알림팀장',
+      true
+    );
+    User sv = TestDataFactory.createSvUser('지연알림SV', false);
+    sv.ManagerId = manager.Id;
+    insert sv;
+    Inspection__c ins = [
+      SELECT Id, Franchise__r.Name
+      FROM Inspection__c
+      LIMIT 1
+    ];
+    update new Inspection__c(Id = ins.Id, OwnerId = sv.Id);
+    insertAction(getResults(1)[0], CorrectiveActionService.STATUS_REQUESTED);
+    CorrectiveAction__c action = [
+      SELECT Id, Name
+      FROM CorrectiveAction__c
+      LIMIT 1
+    ];
+
+    Test.startTest();
+    update new CorrectiveAction__c(
+      Id = action.Id,
+      Status__c = CorrectiveActionService.STATUS_OVERDUE
+    );
+    Test.stopTest();
+
+    Assert.areEqual(
+      1,
+      OperationAlertService.attemptedAlerts.size(),
+      '지연 전환 1건 → 알림 1건'
+    );
+    OperationAlertService.Alert alert = OperationAlertService.attemptedAlerts[0];
+    Assert.areEqual(action.Id, alert.targetId, '대상 = 시정조치');
+    Assert.isTrue(
+      alert.recipientIds.contains(manager.Id),
+      '수신자 = 점검 소유자의 Manager'
+    );
+    Assert.isTrue(
+      alert.title.contains(ins.Franchise__r.Name),
+      '제목에 가맹점: ' + alert.title
+    );
+    Assert.isTrue(
+      alert.body.contains(action.Name) && alert.body.contains('기한'),
+      '본문에 번호 · 기한: ' + alert.body
+    );
+  }
+
+  // 증명: 지연이 아닌 상태로 바뀌거나 이미 지연인 건을 다시 저장하면 알리지 않는다
+  @IsTest
+  static void nonOverdueChanges_noAlert() {
+    List<InspectionResult__c> results = getResults(2);
+    insertAction(results[0], CorrectiveActionService.STATUS_REQUESTED);
+    insertAction(results[1], CorrectiveActionService.STATUS_OVERDUE);
+    List<CorrectiveAction__c> actions = [
+      SELECT Id, Status__c
+      FROM CorrectiveAction__c
+      ORDER BY Name
+    ];
+
+    Test.startTest();
+    actions[0].Status__c = '조치완료';
+    actions[1].DueDate__c = Date.today().addDays(10);
+    update actions;
+    Test.stopTest();
+
+    Assert.areEqual(
+      0,
+      OperationAlertService.attemptedAlerts.size(),
+      '지연 전환이 아니면 알림 없음'
+    );
+  }
+
+  // 증명: 200건이 한 번에 지연으로 바뀌어도 건마다 알림 1건, 쿼리 수는 건수와 무관하다
+  @IsTest
+  static void bulk200Overdue_alertEachConstantQueries() {
+    List<CorrectiveAction__c> actions = TestDataFactory.createCorrectiveActions(
+      getResults(BULK_SIZE),
+      1,
+      CorrectiveActionService.STATUS_REQUESTED,
+      Date.today().addDays(7),
+      true
+    );
+
+    // NOTE: Id · 상태만 담아 update — 팩토리가 돌려준 레코드에는 결과 항목(Master-Detail, 수정 불가)이 들어 있다
+    List<CorrectiveAction__c> overdue = new List<CorrectiveAction__c>();
+    for (CorrectiveAction__c action : actions) {
+      overdue.add(
+        new CorrectiveAction__c(
+          Id = action.Id,
+          Status__c = CorrectiveActionService.STATUS_OVERDUE
+        )
+      );
+    }
+
+    Test.startTest();
+    Integer queriesBefore = Limits.getQueries();
+    update overdue;
+    Integer queriesUsed = Limits.getQueries() - queriesBefore;
+    Test.stopTest();
+
+    Assert.areEqual(
+      BULK_SIZE,
+      OperationAlertService.attemptedAlerts.size(),
+      '200건 → 알림 200건'
+    );
+    // NOTE: 맥락 조회 1 + 수신자(User) 1 + 알림 유형 1
+    Assert.isTrue(
+      queriesUsed <= 3,
+      '쿼리 수가 건수와 무관해야 한다. 실제: ' + queriesUsed
     );
   }
 

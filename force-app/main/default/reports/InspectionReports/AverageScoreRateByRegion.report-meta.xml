@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<Report xmlns="http://soap.sforce.com/2006/04/metadata">
+    <columns>
+        <field>Inspection__c$Name</field>
+    </columns>
+    <columns>
+        <field>Inspection__c$Franchise__c</field>
+    </columns>
+    <columns>
+        <field>Inspection__c$InspectionDate__c</field>
+    </columns>
+    <columns>
+        <field>Inspection__c$Judgement__c</field>
+    </columns>
+    <columns>
+        <aggregateTypes>Average</aggregateTypes>
+        <field>Inspection__c$fmScoreRate__c</field>
+    </columns>
+    <description
+  >26-10-19 권역별 평균 점수율 — 점검완료 이후 상태 · 배점 있는 점검 · 권역 있는 가맹점만 by Kai</description>
+    <filter>
+        <criteriaItems>
+            <column>Inspection__c$Status__c</column>
+            <columnToColumn>false</columnToColumn>
+            <isUnlocked>true</isUnlocked>
+            <operator>notEqual</operator>
+            <value>점검예정</value>
+        </criteriaItems>
+        <criteriaItems>
+            <column>Inspection__c$ruMaxScore__c</column>
+            <columnToColumn>false</columnToColumn>
+            <isUnlocked>true</isUnlocked>
+            <operator>greaterThan</operator>
+            <value>0</value>
+        </criteriaItems>
+        <criteriaItems>
+            <column>Inspection__c$Franchise__c.Region__c</column>
+            <columnToColumn>false</columnToColumn>
+            <isUnlocked>true</isUnlocked>
+            <operator>notEqual</operator>
+            <value />
+        </criteriaItems>
+        <language>ko</language>
+    </filter>
+    <format>Summary</format>
+    <groupingsDown>
+        <dateGranularity>Day</dateGranularity>
+        <field>Inspection__c$Franchise__c.Region__c</field>
+        <sortOrder>Asc</sortOrder>
+    </groupingsDown>
+    <name>권역별 평균 점수율</name>
+    <params>
+        <name>co</name>
+        <value>1</value>
+    </params>
+    <reportType>InspectionsWithFranchise__c</reportType>
+    <scope>organization</scope>
+    <showDetails>true</showDetails>
+    <showGrandTotal>true</showGrandTotal>
+    <showSubTotals>true</showSubTotals>
+    <timeFrameFilter>
+        <dateColumn>Inspection__c$InspectionDate__c</dateColumn>
+        <interval>INTERVAL_CUSTOM</interval>
+    </timeFrameFilter>
+</Report>

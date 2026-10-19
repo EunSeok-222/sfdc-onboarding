@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>fmScoreRate__c</fullName>
+    <description
+  >26-10-19 점수율 = 총점 ÷ 배점 합계(배점 0이면 빈 값) — 과거 40점 점검표와 100점 점검표를 섞어 총점으로 평균내지 않으려고 by Kai</description>
+    <externalId>false</externalId>
+    <formula
+  >IF(ruMaxScore__c &gt; 0, ruTotalScore__c / ruMaxScore__c, NULL)</formula>
+    <formulaTreatBlanksAs>BlankAsBlank</formulaTreatBlanksAs>
+    <inlineHelpText
+  >총점 ÷ 배점 합계. 점검표 배점이 달라도 비교할 수 있다</inlineHelpText>
+    <label>점수율</label>
+    <precision>18</precision>
+    <required>false</required>
+    <scale>1</scale>
+    <type>Percent</type>
+    <unique>false</unique>
+</CustomField>

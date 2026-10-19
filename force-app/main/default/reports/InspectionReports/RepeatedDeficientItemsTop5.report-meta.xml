@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<Report xmlns="http://soap.sforce.com/2006/04/metadata">
+    <columns>
+        <field>CHILD_NAME</field>
+    </columns>
+    <columns>
+        <field>CUST_NAME</field>
+    </columns>
+    <columns>
+        <field>Inspection__c.Franchise__c</field>
+    </columns>
+    <columns>
+        <field>Inspection__c.InspectionDate__c</field>
+    </columns>
+    <description
+  >26-10-19 미흡 결과 항목을 항목명별로 센 건수(많은 순) — 대시보드는 상위 5개만 표시 by Kai</description>
+    <filter>
+        <criteriaItems>
+            <column>InspectionResult__c.IsDeficient__c</column>
+            <columnToColumn>false</columnToColumn>
+            <isUnlocked>true</isUnlocked>
+            <operator>equals</operator>
+            <value>1</value>
+        </criteriaItems>
+        <language>ko</language>
+    </filter>
+    <format>Summary</format>
+    <groupingsDown>
+        <dateGranularity>Day</dateGranularity>
+        <field>InspectionResult__c.ItemName__c</field>
+        <sortByName>RowCount</sortByName>
+        <sortOrder>Desc</sortOrder>
+        <sortType>Aggregate</sortType>
+    </groupingsDown>
+    <name>반복 지적 항목 Top 5</name>
+    <params>
+        <name>co</name>
+        <value>1</value>
+    </params>
+    <reportType
+  >CustomEntityCustomEntity$Inspection__c$InspectionResult__c</reportType>
+    <scope>organization</scope>
+    <showDetails>true</showDetails>
+    <showGrandTotal>true</showGrandTotal>
+    <showSubTotals>true</showSubTotals>
+    <timeFrameFilter>
+        <dateColumn>Inspection__c.InspectionDate__c</dateColumn>
+        <interval>INTERVAL_CUSTOM</interval>
+    </timeFrameFilter>
+</Report>

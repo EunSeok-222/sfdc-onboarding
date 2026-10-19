@@ -7,6 +7,7 @@
  * --------------------------------------------------------------------------------------
  *  2026.10.18   Kai        Created     최초 작성 — 26-10-18 SC-02 점검 결과 입력
  *  2026.10.18   Kai        Updated     26-10-18 좁은 영역 세로 배치 by Kai
+ *  2026.10.19   Kai        Updated     시정 단계부터 점수 잠금 안내 한 줄(검증 규칙 ScoreLockedAfterCompletion과 같은 기준)
  * ======================================================================================
  *  @see         : InspectionResultController.cls, inspectionJudgementPanel(저장 뒤 getRecord로 갱신)
  *  @note        : 범위 밖 — 사진 첨부(BR-04) · 임시 저장/완료 분리 · 완료 미리보기 · 행 추가/삭제. 버튼은 「저장」 하나
@@ -19,6 +20,10 @@ import { reduceErrors } from "c/ldsUtils";
 import getResults from "@salesforce/apex/InspectionResultController.getResults";
 import saveResults from "@salesforce/apex/InspectionResultController.saveResults";
 
+// NOTE: 점수를 고칠 수 있는 점검 상태 — 컨트롤러 EDITABLE_STATUSES · 검증 규칙 ScoreLockedAfterCompletion과 같은 기준
+const EDITABLE_STATUSES = ["점검예정", "점검완료"];
+const LOCK_NOTICE = "시정 단계부터는 점수를 고칠 수 없습니다(판정 고정).";
+
 export default class InspectionResultEditor extends LightningElement {
   @api recordId;
   // NOTE: 레코드 페이지가 넣어 주는 영역 폭(SMALL · MEDIUM · LARGE). App Page 등에서는 비어 있다
@@ -27,6 +32,7 @@ export default class InspectionResultEditor extends LightningElement {
   // DESC: 화면에서 고친 점수만 담는다 — 결과 항목 Id → 점수(비우면 null)
   draftScoresById = {};
   results = [];
+  inspectionStatus;
   isReadOnly = true;
   isLoaded = false;
   isSaving = false;
@@ -38,6 +44,7 @@ export default class InspectionResultEditor extends LightningElement {
     const { data, error } = value;
     if (data) {
       this.results = data.results;
+      this.inspectionStatus = data.inspectionStatus;
       this.isReadOnly = data.isReadOnly;
       this.isLoaded = true;
     } else if (error) {
@@ -52,6 +59,15 @@ export default class InspectionResultEditor extends LightningElement {
 
   get hasResults() {
     return this.results.length > 0;
+  }
+
+  // DESC: 시정 단계(시정중 · 지연 · 재점검완료 · 종료)면 잠금 안내 한 줄. 권한이 없어 읽기 전용인 경우는 안내하지 않는다
+  get lockNotice() {
+    return this.isLoaded &&
+      this.inspectionStatus &&
+      !EDITABLE_STATUSES.includes(this.inspectionStatus)
+      ? LOCK_NOTICE
+      : null;
   }
 
   // DESC: 사이드바 등 좁은 영역이면 세로 배치. 값이 없으면 넓은 배치

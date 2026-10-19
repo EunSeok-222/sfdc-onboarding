@@ -14,6 +14,21 @@
       </template>
     </div>
     <div class="slds-var-p-horizontal_medium">
+      <template lwc:if={lockNotice}>
+        <div
+          class="slds-grid slds-grid_vertical-align-center slds-var-p-bottom_x-small"
+        >
+          <lightning-icon
+            icon-name="utility:lock"
+            size="x-small"
+            alternative-text="잠금"
+            class="slds-m-right_x-small"
+          ></lightning-icon>
+          <span class="slds-text-body_small slds-text-color_weak"
+            >{lockNotice}</span
+          >
+        </div>
+      </template>
       <template lwc:if={hasResults}>
         <template for:each={groups} for:item="group">
           <div key={group.category} class="result-group">

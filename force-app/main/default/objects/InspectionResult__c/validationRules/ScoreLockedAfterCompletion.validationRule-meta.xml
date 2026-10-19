@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<ValidationRule xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>ScoreLockedAfterCompletion</fullName>
+    <active>true</active>
+    <description
+  >26-10-19 시정 단계(시정중 · 지연 · 재점검완료 · 종료)부터 점수 수정 금지 — 판정은 점검완료 때 고정되므로 점수만 바뀌면 판정과 어긋난다(리허설 2회차) by Kai</description>
+    <errorConditionFormula>AND(
+  ISCHANGED(Score__c),
+  NOT(ISPICKVAL(Inspection__r.Status__c, &quot;점검예정&quot;)),
+  NOT(ISPICKVAL(Inspection__r.Status__c, &quot;점검완료&quot;))
+)</errorConditionFormula>
+    <errorDisplayField>Score__c</errorDisplayField>
+    <errorMessage
+  >시정 단계부터는 점수를 고칠 수 없습니다(판정 고정).</errorMessage>
+</ValidationRule>

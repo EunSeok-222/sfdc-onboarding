@@ -7,6 +7,7 @@
  *  Date         Modifier   Status      Description
  * --------------------------------------------------------------------------------------
  *  2026.10.18   Kai        Created     최초 작성 — 분류 · 정렬 순서, SV 공유 범위, 200건 DML 1, 배점 초과 · 조회전용 FLS, 빈 Id
+ *  2026.10.19   Kai        Updated     시정중 점검 읽기 전용 · 점수 저장 차단(검증 규칙 ScoreLockedAfterCompletion), 점검완료는 수정 가능
  * ======================================================================================*/
 @IsTest
 private class InspectionResultControllerTest {
@@ -165,6 +166,86 @@ private class InspectionResultControllerTest {
         WHERE Inspection__c = :ins.Id AND Score__c = 3
       ],
       '200건 저장'
+    );
+  }
+
+  // 증명: 시정 단계(시정중)부터는 읽기 전용이고 점수 저장이 검증 규칙(ScoreLockedAfterCompletion)으로 막힌다. 점검완료는 고칠 수 있다
+  @IsTest
+  static void correctingInspection_isReadOnlyAndScoreLocked() {
+    List<Inspection__c> inspections = insertInspections(
+      new List<Id>{ null, null },
+      TestDataFactory.STATUS_COMPLETED
+    );
+    Inspection__c completed = inspections[0];
+    Inspection__c correcting = inspections[1];
+    List<InspectionTemplateItem__c> items = TestDataFactory.createTemplateItems(
+      1,
+      0,
+      5,
+      true
+    );
+    List<InspectionResult__c> results = new List<InspectionResult__c>();
+    results.addAll(
+      TestDataFactory.createResults(
+        completed,
+        items,
+        new List<Decimal>{ 5 },
+        false
+      )
+    );
+    results.addAll(
+      TestDataFactory.createResults(
+        correcting,
+        items,
+        new List<Decimal>{ 5 },
+        false
+      )
+    );
+    insert results;
+    // NOTE: 점검완료 → 시정중은 허용 전이. 결과 항목을 만든 뒤에 시정 단계로 보낸다
+    update new Inspection__c(Id = correcting.Id, Status__c = '시정중');
+
+    AuraHandledException locked;
+    Test.startTest();
+    InspectionResultController.ResultSheet completedSheet = InspectionResultController.getResults(
+      completed.Id
+    );
+    InspectionResultController.ResultSheet correctingSheet = InspectionResultController.getResults(
+      correcting.Id
+    );
+    // DESC: 점검완료는 아직 고칠 수 있다(판정 재계산) — 같은 트랜잭션에서 저장이 통과하는지 함께 본다
+    InspectionResultController.saveResults(
+      new List<Id>{ results[0].Id },
+      new List<Decimal>{ 4 }
+    );
+    try {
+      InspectionResultController.saveResults(
+        new List<Id>{ results[1].Id },
+        new List<Decimal>{ 4 }
+      );
+    } catch (AuraHandledException e) {
+      locked = e;
+    }
+    Test.stopTest();
+
+    Assert.isFalse(completedSheet.isReadOnly, '점검완료는 점수를 고칠 수 있다');
+    Assert.isTrue(correctingSheet.isReadOnly, '시정중은 읽기 전용');
+    Assert.areEqual(
+      4,
+      [SELECT Score__c FROM InspectionResult__c WHERE Id = :results[0].Id]
+      .Score__c,
+      '점검완료 점수는 저장된다'
+    );
+    Assert.isNotNull(locked, '시정중 점수 저장은 막혀야 한다');
+    Assert.isTrue(
+      locked.getMessage().contains('시정 단계부터는 점수를 고칠 수 없습니다'),
+      '검증 규칙 문구 그대로: ' + locked.getMessage()
+    );
+    Assert.areEqual(
+      5,
+      [SELECT Score__c FROM InspectionResult__c WHERE Id = :results[1].Id]
+      .Score__c,
+      '시정중 점수는 그대로'
     );
   }
 

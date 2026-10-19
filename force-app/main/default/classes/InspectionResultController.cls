@@ -7,13 +7,18 @@
  *  Date         Modifier   Status      Description
  * --------------------------------------------------------------------------------------
  *  2026.10.18   Kai        Created     최초 작성 — 26-10-18 SC-02 점검 결과 입력 (조회 SOQL 1 · 저장 DML 1)
+ *  2026.10.19   Kai        Updated     읽기 전용 조건을 「점검예정 · 점검완료가 아니면」으로 확대 — 검증 규칙 ScoreLockedAfterCompletion과 맞춤
  * ======================================================================================
  *  @see         : lwc/inspectionResultEditor, InspectionResultService.cls(미흡 판정 · 스냅샷)
  *  @note        : with sharing + USER_MODE — SV는 자기 점검만 보이고, 점수 편집 권한(FLS)이 없으면 저장이 거부된다.
  *                 미흡은 이 클래스가 아니라 결과 항목 트리거가 점수로 판정한다
  * ======================================================================================*/
 public with sharing class InspectionResultController {
-  private static final String STATUS_CLOSED = '종료';
+  // NOTE: 점수를 고칠 수 있는 상태 — 판정은 점검완료 때 정해지고, 시정 단계부터는 검증 규칙 ScoreLockedAfterCompletion이 막는다
+  private static final Set<String> EDITABLE_STATUSES = new Set<String>{
+    '점검예정',
+    '점검완료'
+  };
   // NOTE: 화면 묶음 순서 — 분류 선택 목록 정의 순서와 같다(위생 → 서비스 → 매뉴얼). 그 밖의 값은 맨 뒤
   private static final Map<String, Integer> CATEGORY_RANK = new Map<String, Integer>{
     '위생' => 0,
@@ -76,7 +81,7 @@ public with sharing class InspectionResultController {
 
   /**
    * @description : 점검의 결과 항목을 분류(위생 → 서비스 → 매뉴얼) → 템플릿 정렬 순서로 돌려준다.
-   *                볼 수 없는 점검 · 빈 Id면 빈 목록. 종료된 점검이거나 점수 편집 권한이 없으면 읽기 전용.
+   *                볼 수 없는 점검 · 빈 Id면 빈 목록. 점검예정 · 점검완료가 아니거나(시정 단계부터 판정 고정) 점수 편집 권한이 없으면 읽기 전용.
    * @author      : 이은석(Kai) | 2026.10.18
    * @param inspectionId 점검 Id
    * @return ResultSheet
@@ -114,7 +119,7 @@ public with sharing class InspectionResultController {
     Inspection__c ins = inspections[0];
     sheet.inspectionStatus = ins.Status__c;
     sheet.isReadOnly =
-      ins.Status__c == STATUS_CLOSED ||
+      !EDITABLE_STATUSES.contains(ins.Status__c) ||
       !Schema.SObjectType.InspectionResult__c.fields.Score__c.isUpdateable();
     for (InspectionResult__c result : ins.InspectionInspectionResults__r) {
       InspectionResultWrapper row = new InspectionResultWrapper();

@@ -9,6 +9,7 @@
  *  2026.10.13   Kai        Created     최초 작성 — Default 기준 조회
  *  2026.10.18   Kai        Updated     항목 미흡 기준(getDeficiencyRate) 추가 — 결과 항목 미흡 자동 판정용(D1)
  *  2026.10.18   Kai        Updated     조회할 기준 레코드 이름을 테스트 주입구로 분리 — 「Default 레코드 없음」 분기 테스트(Step 8)
+ *  2026.10.19   Kai        Updated     공급 제한 기본 일수(getSupplyRestrictionDays) 추가 — 페널티 기간 자동(BR-08)
  * ======================================================================================
  *  @see         : InspectionService.cls, InspectionResultService.cls, customMetadata/InspectionRule.Default.md-meta.xml
  *  @note        : getInstance()는 SOQL 한도를 쓰지 않는다. 기준이 '가맹점 등급별'로 나뉘면 이 클래스만 바뀐다
@@ -63,6 +64,24 @@ public with sharing class InspectionRuleSelector {
       );
     }
     return rate;
+  }
+
+  /**
+   * @description : 공급 제한 기본 일수(시작일 포함)를 반환한다. 비어 있거나 1 미만이면 즉시 실패한다.
+   * @author      : 이은석(Kai) | 2026.10.19
+   * @return Integer 일수 (예: 7 = 1주)
+   **/
+  public static Integer getSupplyRestrictionDays() {
+    Decimal days = getDefaultRule().SupplyRestrictionDays__c;
+    if (days == null || days < 1) {
+      // WARN: 0이나 빈 값으로 계산하면 종료일이 시작일보다 앞서 저장이 막히거나 물류 통보가 거절된다 — 원인을 바로 알리게 한다
+      throw new InspectionRuleException(
+        '점검 기준(InspectionRule__mdt) \'' +
+          ruleDeveloperName +
+          '\'의 공급 제한 일수(SupplyRestrictionDays__c)가 비었거나 1 미만입니다.'
+      );
+    }
+    return days.intValue();
   }
 
   public class InspectionRuleException extends Exception {

@@ -26,4 +26,8 @@
         <field>DefaultDueDays__c</field>
         <value xsi:type="xsd:double">7</value>
     </values>
+    <values>
+        <field>SupplyRestrictionDays__c</field>
+        <value xsi:type="xsd:double">7</value>
+    </values>
 </CustomMetadata>

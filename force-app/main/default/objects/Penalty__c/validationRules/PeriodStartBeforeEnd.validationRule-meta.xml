@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<ValidationRule xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>PeriodStartBeforeEnd</fullName>
+    <active>true</active>
+    <description
+  >26-10-19 시작일이 종료일보다 늦으면 저장 차단 — 물류 org가 400(startDate가 endDate보다 늦음)으로 거절하는 것을 미리 막는다(리허설 3회차) by Kai</description>
+    <errorConditionFormula>AND(
+  NOT(ISBLANK(StartDate__c)),
+  NOT(ISBLANK(EndDate__c)),
+  StartDate__c &gt; EndDate__c
+)</errorConditionFormula>
+    <errorDisplayField>EndDate__c</errorDisplayField>
+    <errorMessage>종료일은 시작일과 같거나 그 뒤여야 합니다.</errorMessage>
+</ValidationRule>

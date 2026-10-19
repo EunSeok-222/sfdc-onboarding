@@ -11,6 +11,7 @@
  *  2026.10.17   Kai        Updated     이벤트 발행 결과 확인 — 실패 사유를 로그 오류 메시지에 기록(승인은 막지 않음, Step 6 E2E 수정)
  *  2026.10.17   Kai        Updated     아웃박스 처리를 without sharing 내부 클래스로 분리 — 연동 사용자 0건 조회 수정(Step 6)
  *  2026.10.18   Kai        Updated     로그 소유자 판정(findLogReaders) 공개 · 비활성 사용자 제외 — IF-004 수신 로그와 공유(Step 7-A)
+ *  2026.10.19   Kai        Updated     통보 전 검증에 기간 역전(시작일 > 종료일) 추가 — 검증 규칙 PeriodStartBeforeEnd와 이중 방어
  * ======================================================================================
  *  @see         : LogisticsNotifyQueueable.cls, LogisticsNotifyEventTriggerHandler.cls, LogisticsResultService.cls,
  *                 인터페이스 정의서 V1.1 IF-001
@@ -387,6 +388,9 @@ public with sharing class LogisticsNotifyService {
     }
     if (penalty.StartDate__c == null || penalty.EndDate__c == null) {
       problems.add('제한 기간 없음');
+    } else if (penalty.StartDate__c > penalty.EndDate__c) {
+      // NOTE: 저장은 검증 규칙이 막지만, 규칙이 꺼지거나 데이터 로더 등으로 들어온 건도 물류 400 전에 여기서 거른다(이중 방어)
+      problems.add('시작일이 종료일보다 늦음');
     }
     if (!problems.isEmpty()) {
       throw failure(

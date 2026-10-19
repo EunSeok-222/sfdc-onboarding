@@ -8,6 +8,7 @@
  * --------------------------------------------------------------------------------------
  *  2026.10.14   Kai        Created     최초 작성 — 201 · 503 · 404 · 429 · 시간 초과 · 입력 검증
  *  2026.10.18   Kai        Updated     비활성 페널티 소유자 → 로그 기본 소유자 검증 추가(Step 7-A)
+ *  2026.10.19   Kai        Updated     기간 없음 · 기간 역전은 콜아웃 없이 거절 — 검증 규칙 때문에 저장할 수 없어 인메모리 레코드로 검증
  * ======================================================================================
  *  @see         : LogisticsNotifyMock.cls
  *  @note        : Test.setMock은 Test.startTest() 앞에서 호출한다
@@ -144,6 +145,42 @@ private class LogisticsNotifyServiceTest {
       caught.getMessage().contains('승인 전') &&
       caught.getMessage().contains('매장코드 없음'),
       '거절 이유를 모두 알려줘야 한다. 실제: ' + caught.getMessage()
+    );
+    Assert.isNull(mock.lastRequest, '거절할 요청은 보내지 않아야 한다');
+  }
+
+  // 증명: 기간 역전 · 기간 없음은 콜아웃 없이 거절된다(이중 방어) — 검증 규칙 PeriodStartBeforeEnd와 기간 자동 채움 때문에
+  //       DB에는 이런 공급 제한을 저장할 수 없으므로 저장된 레코드를 메모리에서만 바꿔 넘긴다
+  @IsTest
+  static void notify_reversedOrMissingPeriod_isRejectedWithoutCallout() {
+    Penalty__c reversed = getPenalty();
+    reversed.StartDate__c = Date.today().addDays(2);
+    reversed.EndDate__c = Date.today().addDays(1);
+    Penalty__c missing = getPenalty();
+    missing.EndDate__c = null;
+    LogisticsNotifyMock mock = new LogisticsNotifyMock(201, null);
+    Test.setMock(HttpCalloutMock.class, mock);
+
+    List<String> messages = new List<String>();
+    Test.startTest();
+    for (Penalty__c penalty : new List<Penalty__c>{ reversed, missing }) {
+      try {
+        LogisticsNotifyService.notifySupplyRestriction(penalty);
+      } catch (LogisticsNotifyService.LogisticsNotifyException e) {
+        Assert.isFalse(e.retryable, '데이터 문제는 재시도해도 같다');
+        messages.add(e.getMessage());
+      }
+    }
+    Test.stopTest();
+
+    Assert.areEqual(2, messages.size(), '두 건 모두 거절되어야 한다');
+    Assert.isTrue(
+      messages[0].contains('시작일이 종료일보다 늦음'),
+      '기간 역전 이유가 있어야 한다. 실제: ' + messages[0]
+    );
+    Assert.isTrue(
+      messages[1].contains('제한 기간 없음'),
+      '기간 없음 이유가 있어야 한다. 실제: ' + messages[1]
     );
     Assert.isNull(mock.lastRequest, '거절할 요청은 보내지 않아야 한다');
   }

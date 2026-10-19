@@ -8,6 +8,7 @@
  * --------------------------------------------------------------------------------------
  *  2026.10.13   Kai        Created     최초 작성
  *  2026.10.18   Kai        Updated     「기준 레코드 없음」 예외 테스트 추가(ruleDeveloperName 주입, Step 8)
+ *  2026.10.19   Kai        Updated     공급 제한 일수 — 배포값 1 이상 · 비었거나 0이면 예외
  * ======================================================================================
  *  @note        : Custom Metadata는 SeeAllData와 무관하게 테스트에서도 배포된 레코드가 보인다.
  *                 Apex 쪽은 ruleOverride로 값을 바꿀 수 있지만, Flow는 항상 배포된 레코드를 읽는다
@@ -45,6 +46,34 @@ private class InspectionRuleSelectorTest {
     Assert.isTrue(
       caught.getMessage().contains('NoSuchRule'),
       '어떤 기준이 없는지 알려 준다: ' + caught.getMessage()
+    );
+  }
+
+  // 공급 제한 일수 — 배포된 Default는 1 이상이고, 비었거나 0이면 기간을 엉뚱하게 계산하지 않고 바로 실패한다
+  @IsTest
+  static void supplyRestrictionDays_deployedValid_blankOrZeroThrows() {
+    Integer deployedDays = InspectionRuleSelector.getSupplyRestrictionDays();
+
+    List<String> messages = new List<String>();
+    for (Decimal invalid : new List<Decimal>{ null, 0 }) {
+      InspectionRuleSelector.ruleOverride = new InspectionRule__mdt(
+        SupplyRestrictionDays__c = invalid
+      );
+      try {
+        InspectionRuleSelector.getSupplyRestrictionDays();
+      } catch (InspectionRuleSelector.InspectionRuleException e) {
+        messages.add(e.getMessage());
+      }
+    }
+
+    Assert.isTrue(
+      deployedDays >= 1,
+      '배포된 공급 제한 일수는 1 이상: ' + deployedDays
+    );
+    Assert.areEqual(2, messages.size(), '빈 값 · 0 모두 예외가 나야 한다');
+    Assert.isTrue(
+      messages[0].contains('SupplyRestrictionDays__c'),
+      '어떤 필드가 문제인지 알려 준다: ' + messages[0]
     );
   }
 

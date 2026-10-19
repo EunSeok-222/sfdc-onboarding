@@ -7,11 +7,36 @@
  *  Date         Modifier   Status      Description
  * --------------------------------------------------------------------------------------
  *  2026.10.16   Kai        Created     최초 작성 — 공급 제한 승인 시 물류 통보 요청 (BR-08, IF-001)
+ *  2026.10.19   Kai        Updated     before insert · update 분기 추가 — PenaltyService 중복 차단 · 공급 제한 기간 자동
  * ======================================================================================
- *  @see         : Penalty.trigger, LogisticsNotifyService.cls
+ *  @see         : Penalty.trigger, LogisticsNotifyService.cls, PenaltyService.cls
  *  @note        : 승인 트랜잭션(승인자 권한)에서는 콜아웃 · 페널티 수정 · enqueue를 하지 않는다 — 로그와 이벤트만 남긴다
  * ======================================================================================*/
 public with sharing class PenaltyTriggerHandler {
+  /**
+   * @description : before insert — 중복이면 막고, 공급 제한의 빈 기간을 채운다.
+   * @author      : 이은석(Kai) | 2026.10.19
+   * @param newPenalties Trigger.new
+   **/
+  public void beforeInsert(List<Penalty__c> newPenalties) {
+    PenaltyService.blockDuplicates(newPenalties, null);
+    PenaltyService.applyDefaultPeriods(newPenalties, null);
+  }
+
+  /**
+   * @description : before update — 근거 점검 · 유형이 바뀐 건만 중복 검사, 승인대기 공급 제한만 빈 기간을 채운다.
+   * @author      : 이은석(Kai) | 2026.10.19
+   * @param newPenalties     Trigger.new
+   * @param oldPenaltiesById Trigger.oldMap
+   **/
+  public void beforeUpdate(
+    List<Penalty__c> newPenalties,
+    Map<Id, Penalty__c> oldPenaltiesById
+  ) {
+    PenaltyService.blockDuplicates(newPenalties, oldPenaltiesById);
+    PenaltyService.applyDefaultPeriods(newPenalties, oldPenaltiesById);
+  }
+
   /**
    * @description : after update — 공급 제한이 「승인」으로 바뀐 페널티만 물류 통보 요청을 남긴다.
    * @author      : 이은석(Kai) | 2026.10.16

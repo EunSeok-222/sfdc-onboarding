@@ -23,6 +23,16 @@
         <h2 class="wsds-history__title">매장 이력</h2>
         <p class="wsds-history__subtitle">{headerSubtitle}</p>
       </div>
+      <div class="wsds-history__header-actions">
+        <lightning-button-icon
+          icon-name="utility:refresh"
+          variant="border-filled"
+          alternative-text="매장 이력 새로고침"
+          title="새로고침"
+          disabled={isRefreshing}
+          onclick={handleRefreshClick}
+        ></lightning-button-icon>
+      </div>
     </header>
 
     <!-- DESC: BR-08 연속 불합격 안내 — 헤더와 필터 칩 사이. 경고형은 아이콘 + 문구로 색만으로 구분하지 않는다 -->

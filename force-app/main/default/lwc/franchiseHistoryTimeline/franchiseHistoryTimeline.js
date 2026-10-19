@@ -8,11 +8,17 @@
  *  2026.10.14   Kai        Created     최초 작성 (확정 시안 docs/design/sc03-franchise-history-mockup.html)
  *  2026.10.14   Kai        Updated     페널티 '반려' 배지를 완료(초록)에서 중립(회색)으로 변경
  *  2026.10.19   Kai        Updated     BR-08 연속 불합격 안내 추가(리허설 2회차 발견)
+ *  2026.10.19   Kai        Updated     즉시 갱신 — lightning/refresh 새로고침 핸들러(refreshApex) · 헤더 새로고침 버튼(대체 수단)
  * ======================================================================================
  *  @see         : FranchiseHistoryController.cls
  *  @note        : Apex는 데이터만 준다. 상태 → 색(TONE), 날짜 · 기한 문구 조합은 여기서 한다
  * ======================================================================================*/
 import { LightningElement, api, wire } from "lwc";
+import { refreshApex } from "@salesforce/apex";
+import {
+  registerRefreshHandler,
+  unregisterRefreshHandler
+} from "lightning/refresh";
 import { getRecord, getFieldValue } from "lightning/uiRecordApi";
 import { NavigationMixin } from "lightning/navigation";
 import { ShowToastEvent } from "lightning/platformShowToastEvent";
@@ -112,6 +118,10 @@ export default class FranchiseHistoryTimeline extends NavigationMixin(
   isLoaded = false;
   urlsById = {};
   urlRequestId = 0;
+  // DESC: refreshApex에 넘길 @wire 결과 원본(data · error를 꺼내기 전 객체)
+  wiredHistory;
+  refreshHandlerId;
+  isRefreshing = false;
 
   get headerSubtitle() {
     const data = this.franchise?.data;
@@ -244,7 +254,9 @@ export default class FranchiseHistoryTimeline extends NavigationMixin(
   franchise;
 
   @wire(getHistory, { franchiseId: "$recordId" })
-  handleHistoryWire({ data, error }) {
+  handleHistoryWire(value) {
+    this.wiredHistory = value;
+    const { data, error } = value;
     if (data) {
       this.events = data;
       this.isLoaded = true;
@@ -253,6 +265,39 @@ export default class FranchiseHistoryTimeline extends NavigationMixin(
       this.events = [];
       this.isLoaded = true;
       this.showErrorToast(error);
+    }
+  }
+
+  // NOTE: @wire(Apex) 결과는 LDS 레코드처럼 저장 뒤 자동으로 다시 읽히지 않는다. 페이지의 Lightning 새로고침
+  //       (빠른 작업 저장 등)에 참여하도록 핸들러를 등록하고, 화면을 떠나면 해제한다
+  connectedCallback() {
+    this.refreshHandlerId = registerRefreshHandler(
+      this,
+      this.refreshTimeline.bind(this)
+    );
+  }
+
+  disconnectedCallback() {
+    unregisterRefreshHandler(this.refreshHandlerId);
+  }
+
+  // DESC: 새로고침 서비스용 — 처리 결과를 Promise<boolean>으로 돌려줘야 한다
+  refreshTimeline() {
+    if (!this.wiredHistory) {
+      return Promise.resolve(true);
+    }
+    return refreshApex(this.wiredHistory).then(() => true);
+  }
+
+  // DESC: 헤더 새로고침 버튼 — 페이지 새로고침이 오지 않는 동작(다른 탭에서 저장 등)의 대체 수단
+  async handleRefreshClick() {
+    this.isRefreshing = true;
+    try {
+      await this.refreshTimeline();
+    } catch (error) {
+      this.showErrorToast(error);
+    } finally {
+      this.isRefreshing = false;
     }
   }
 

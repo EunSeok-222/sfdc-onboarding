@@ -9,6 +9,7 @@
  *  2026.10.18   Kai        Updated     라이브에서 새로 만든 의정부점 정기점검(이관번호 없음 · DEMO-006 이후)도 정리 대상에 추가
  *  2026.10.18   Kai        Updated     승인 잠금 표시를 Approval.isLocked → 상태(승인대기 · 승인)로 변경 — Apex 잠금 API 설정을 꺼서 실패
  *  2026.10.18   Kai        Updated     보존 추가 — INS-202610-0038 · PEN-000006(demo-story-uijeongbu 의정부점 9월 불합격 · 경고)
+ *  2026.10.19   Kai        Updated     라이브 점검 대상을 정기점검 외 재점검 · 불시점검까지 확대(레코드 유형 조건 제거)
  * ======================================================================================
  *  실행 : sf apex run --file scripts/apex/demo-rehearsal-cleanup.apex --target-org kai-dev
  *  순서 : 1) 이 스크립트 미리보기(EXECUTE = false) → 대상과 「물류 org에 넘길 상관 ID」 확인
@@ -20,8 +21,8 @@
  *         - 근거 점검이 비었어도 가맹점이 인천송도점 · 의정부점이고 DEMO 점검보다 나중에 만든 페널티
  *           (점검을 지우면 페널티 → 근거 점검 조회가 SetNull로 비기 때문)
  *         - 그 페널티의 인터페이스 로그(페널티 조회 또는 상관 ID 일치) — 로그 → 페널티 조회도 SetNull이라 페널티만 지우면 로그가 남는다
- *         - 라이브에서 「정기점검 생성」으로 만든 의정부점 정기점검(이관번호 없음 · DEMO-006 이후 생성) — 결과 항목 · 시정조치는
- *           Master-Detail이라 점검과 함께 삭제된다. 그 점검을 근거로 한 페널티도 대상
+ *         - 라이브에서 만든 인천송도점 · 의정부점 점검(이관번호 없음 · DEMO 점검 이후 생성) — 레코드 유형 무관(정기 · 재점검 · 불시).
+ *           결과 항목 · 시정조치는 Master-Detail이라 점검과 함께 삭제된다. 그 점검을 근거로 한 페널티도 대상
  *  NOTE : 삭제 순서 = 로그 → 페널티 → 라이브 점검. 점검을 지우면 결과 항목 · 시정조치는 Master-Detail이라 함께 삭제되고,
  *         다른 점검의 원 점검 조회는 SetNull이다(Restrict 없음)
  *  WARN : demo-scene5-reset보다 먼저 실행한다 — 리셋이 먼저 돌면 DEMO 점검이 새로 만들어져 「DEMO보다 나중」 기준이 바뀌고
@@ -61,13 +62,14 @@ for (Inspection__c demo : demos) {
 }
 Set<Id> demoIds = new Map<Id, Inspection__c>(demos).keySet();
 
-// DESC: 1-b) 라이브에서 새로 만든 의정부점 정기점검 — 이관번호 없음 · DEMO 가맹점 · DEMO 점검 이후 생성
+// DESC: 1-b) 라이브에서 새로 만든 DEMO 가맹점 점검 — 이관번호 없음 · DEMO 점검 이후 생성
+// NOTE: 레코드 유형은 보지 않는다 — 시연에서 정기점검 생성뿐 아니라 재점검 · 불시점검을 만들 수 있다. 이관 · DEMO 점검은 이관번호가 있어 빠진다
 List<Inspection__c> liveInspections = new List<Inspection__c>();
 if (cutoff != null) {
   for (Inspection__c live : [
-    SELECT Id, Name, Status__c, Judgement__c, Franchise__r.Name, CreatedDate
+    SELECT Id, Name, Status__c, Judgement__c, RecordType.Name, Franchise__r.Name, CreatedDate
     FROM Inspection__c
-    WHERE InspectionNo__c = NULL AND RecordType.DeveloperName = 'Regular'
+    WHERE InspectionNo__c = NULL
       AND Franchise__r.Name IN :DEMO_FRANCHISES AND CreatedDate > :cutoff
     WITH USER_MODE
   ]) {
@@ -76,8 +78,8 @@ if (cutoff != null) {
       continue;
     }
     liveInspections.add(live);
-    System.debug(LoggingLevel.ERROR, '>>> 대상 라이브 점검 ' + live.Name + ' · ' + live.Franchise__r.Name + ' · ' + live.Status__c +
-      ' · 판정 ' + live.Judgement__c + ' (결과 항목 · 시정조치 함께 삭제)');
+    System.debug(LoggingLevel.ERROR, '>>> 대상 라이브 점검 ' + live.Name + ' · ' + live.RecordType.Name + ' · ' + live.Franchise__r.Name +
+      ' · ' + live.Status__c + ' · 판정 ' + live.Judgement__c + ' (결과 항목 · 시정조치 함께 삭제)');
   }
 }
 Set<Id> sourceInspectionIds = new Set<Id>(demoIds);

@@ -11,12 +11,14 @@
  *  2026.10.13   Kai        Updated     D7 설계 초안(SC-02) 2단 배치 — 왼쪽 기본 정보 · 오른쪽 판정
  *  2026.10.14   Kai        Updated     시정조치 목록(@wire) · 조치 추가 폼 배치, created 이벤트로 목록 갱신
  *  2026.10.14   Kai        Updated     기본 정보 record-form 2단 표시(columns=2)
+ *  2026.10.19   Kai        Updated     조치 추가 뒤 점검 레코드 갱신 알림(notifyRecordUpdateAvailable) — 경로 · 강조 패널 · 결과 입력 즉시 반영
  * ======================================================================================
  *  @see         : docs/d7-lwc-handoff.md §4, correctiveActionForm.js, CorrectiveActionController.cls
  * ======================================================================================*/
 import { LightningElement, api, wire } from "lwc";
 import { ShowToastEvent } from "lightning/platformShowToastEvent";
 import { refreshApex } from "@salesforce/apex";
+import { notifyRecordUpdateAvailable } from "lightning/uiRecordApi";
 import { reduceErrors } from "c/ldsUtils";
 import getByInspection from "@salesforce/apex/CorrectiveActionController.getByInspection";
 
@@ -101,8 +103,11 @@ export default class InspectionDetail extends LightningElement {
   // DESC: 자식(correctiveActionForm)이 조치 저장 후 발행한 created 이벤트를 받아 목록을 다시 불러온다
   // NOTE: 이 목록은 @wire로 받았으므로 refreshApex로 같은 wire를 서버에서 다시 받는다(cacheable 캐시도 갱신).
   //       목록 화면(inspectionList)은 imperative 호출이라 loadInspections()를 다시 불렀지만, wire에는 다시 부를 함수가 없다
-  handleActionCreated() {
-    return refreshApex(this.wiredActions);
+  async handleActionCreated() {
+    await refreshApex(this.wiredActions);
+    // NOTE: After-Save Flow가 같은 트랜잭션에서 점검 상태를 시정중으로 바꾸지만, LDS는 방금 저장한 시정조치 레코드만 알고
+    //       부모 점검이 바뀐 것은 모른다 → 점검 레코드 갱신을 알려 경로 · 강조 패널 · 판정 패널 · 결과 입력(getRecord)이 다시 읽게 한다
+    await notifyRecordUpdateAvailable([{ recordId: this.recordId }]);
   }
 
   showErrorToast(title, error) {

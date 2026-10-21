@@ -8,17 +8,29 @@
  *  2026.10.18   Kai        Created     최초 작성 — 26-10-18 SC-02 점검 결과 입력
  *  2026.10.18   Kai        Updated     26-10-18 좁은 영역 세로 배치 by Kai
  *  2026.10.19   Kai        Updated     시정 단계부터 점수 잠금 안내 한 줄(검증 규칙 ScoreLockedAfterCompletion과 같은 기준)
+ *  2026.10.19   Kai        Updated     점검 상태 구독(getRecord) — 상태가 바뀌면 결과 시트 다시 받기 · 새로고침 핸들러 ·
+ *                                      getRecordNotifyChange → notifyRecordUpdateAvailable
  * ======================================================================================
- *  @see         : InspectionResultController.cls, inspectionJudgementPanel(저장 뒤 getRecord로 갱신)
+ *  @see         : InspectionResultController.cls, inspectionJudgementPanel(저장 뒤 getRecord로 갱신),
+ *                 inspectionDetail(조치 추가 뒤 점검 레코드 갱신 알림)
  *  @note        : 범위 밖 — 사진 첨부(BR-04) · 임시 저장/완료 분리 · 완료 미리보기 · 행 추가/삭제. 버튼은 「저장」 하나
  * ======================================================================================*/
 import { LightningElement, api, wire } from "lwc";
 import { refreshApex } from "@salesforce/apex";
-import { getRecordNotifyChange } from "lightning/uiRecordApi";
+import {
+  getRecord,
+  getFieldValue,
+  notifyRecordUpdateAvailable
+} from "lightning/uiRecordApi";
+import {
+  registerRefreshHandler,
+  unregisterRefreshHandler
+} from "lightning/refresh";
 import { ShowToastEvent } from "lightning/platformShowToastEvent";
 import { reduceErrors } from "c/ldsUtils";
 import getResults from "@salesforce/apex/InspectionResultController.getResults";
 import saveResults from "@salesforce/apex/InspectionResultController.saveResults";
+import STATUS_FIELD from "@salesforce/schema/Inspection__c.Status__c";
 
 // NOTE: 점수를 고칠 수 있는 점검 상태 — 컨트롤러 EDITABLE_STATUSES · 검증 규칙 ScoreLockedAfterCompletion과 같은 기준
 const EDITABLE_STATUSES = ["점검예정", "점검완료"];
@@ -37,6 +49,9 @@ export default class InspectionResultEditor extends LightningElement {
   isLoaded = false;
   isSaving = false;
   wiredSheet;
+  // DESC: LDS(getRecord)로 마지막에 받은 점검 상태 — 처음 값 이후 바뀌었는지 비교용
+  recordStatus;
+  refreshHandlerId;
 
   @wire(getResults, { inspectionId: "$recordId" })
   wiredResults(value) {
@@ -46,6 +61,10 @@ export default class InspectionResultEditor extends LightningElement {
       this.results = data.results;
       this.inspectionStatus = data.inspectionStatus;
       this.isReadOnly = data.isReadOnly;
+      // NOTE: 잠긴 시트의 비활성 입력칸에 저장하지 않은 입력값이 남아 보이지 않게 한다
+      if (data.isReadOnly) {
+        this.draftScoresById = {};
+      }
       this.isLoaded = true;
     } else if (error) {
       this.isLoaded = true;
@@ -55,6 +74,41 @@ export default class InspectionResultEditor extends LightningElement {
         "error"
       );
     }
+  }
+
+  // DESC: 점검 상태를 LDS로 구독한다. 조치 추가(After-Save Flow → 시정중)처럼 다른 곳에서 상태가 바뀌어
+  //       notifyRecordUpdateAvailable이 오면 이 wire가 다시 불린다 → 처음 값 이후 바뀌었을 때만 결과 시트를 다시 받는다
+  // NOTE: 결과 시트는 @wire(Apex)라 LDS 레코드 갱신에 따라 자동으로 다시 읽히지 않는다. 오류는 결과 시트 wire가 알린다
+  @wire(getRecord, { recordId: "$recordId", fields: [STATUS_FIELD] })
+  wiredInspection({ data }) {
+    if (!data) {
+      return;
+    }
+    const status = getFieldValue(data, STATUS_FIELD);
+    const isChanged =
+      this.recordStatus !== undefined && this.recordStatus !== status;
+    this.recordStatus = status;
+    if (isChanged) {
+      this.refreshSheet().catch((error) =>
+        this.toast(
+          "결과 항목을 다시 불러오지 못했습니다",
+          reduceErrors(error).join(", "),
+          "error"
+        )
+      );
+    }
+  }
+
+  // NOTE: 페이지의 Lightning 새로고침(빠른 작업 저장 등)에 참여하도록 핸들러를 등록하고, 화면을 떠나면 해제한다
+  connectedCallback() {
+    this.refreshHandlerId = registerRefreshHandler(
+      this,
+      this.refreshSheet.bind(this)
+    );
+  }
+
+  disconnectedCallback() {
+    unregisterRefreshHandler(this.refreshHandlerId);
   }
 
   get hasResults() {
@@ -181,7 +235,7 @@ export default class InspectionResultEditor extends LightningElement {
         "success"
       );
       // DESC: 판정 패널 · 기본 정보(getRecord)와 이 목록(Apex 캐시)을 모두 새로 읽는다
-      getRecordNotifyChange([{ recordId: this.recordId }]);
+      await notifyRecordUpdateAvailable([{ recordId: this.recordId }]);
       await refreshApex(this.wiredSheet);
       this.draftScoresById = {};
     } catch (error) {
@@ -193,6 +247,14 @@ export default class InspectionResultEditor extends LightningElement {
     } finally {
       this.isSaving = false;
     }
+  }
+
+  // DESC: 새로고침 서비스 · 상태 변경 공용 — 결과 시트(Apex 캐시)를 서버에서 다시 받는다. 새로고침 서비스는 Promise<boolean>을 기대한다
+  refreshSheet() {
+    if (!this.wiredSheet) {
+      return Promise.resolve(true);
+    }
+    return refreshApex(this.wiredSheet).then(() => true);
   }
 
   currentScore(result) {
